@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dice Ticket Inventory</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --bg:#0b0f17; --panel:#131a26; --panel-2:#1a2332; --border:#232e42;
+    --text:#e8edf5; --muted:#8a96ab; --accent:#5b8cff;
+    --green:#3ecf8e; --yellow:#e8c547; --blue:#7aa2f7; --red:#e8607a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1100px; margin:0 auto; padding:20px 16px 60px;}
+  header{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:20px;}
+  h1{font-size:22px; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:13px;}
+  button{
+    background:var(--panel-2); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:8px 14px; font-size:13px; cursor:pointer;
+  }
+  button:hover{border-color:var(--accent);}
+  #status{color:var(--muted); font-size:12px; margin-top:6px;}
+
+  .kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px;}
+  .kpi{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px;}
+  .kpi .val{font-size:22px; font-weight:700;}
+  .kpi .lbl{color:var(--muted); font-size:12px; margin-top:2px;}
+
+  .section{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:18px;}
+  .section h2{font-size:15px; margin:0 0 12px;}
+
+  .bar-row{display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px;}
+  .bar-row .name{width:150px; flex-shrink:0; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .bar-track{flex:1; background:var(--panel-2); border-radius:6px; height:18px; overflow:hidden;}
+  .bar-fill{height:100%; background:linear-gradient(90deg,var(--accent),#8fb0ff); border-radius:6px;}
+  .bar-val{width:70px; text-align:right; flex-shrink:0;}
+
+  .placeholder{border:1px dashed var(--border); border-radius:10px; padding:14px; color:var(--muted); font-size:13px; text-align:center;}
+
+  .filters{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+  .filters input, .filters select{
+    background:var(--panel-2); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:8px 10px; font-size:13px;
+  }
+  .filters input{flex:1; min-width:160px;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th, td{text-align:left; padding:9px 8px; border-bottom:1px solid var(--border);}
+  th{color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em; cursor:pointer; white-space:nowrap;}
+  tbody tr:hover{background:var(--panel-2);}
+  .badge{display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600;}
+  .badge.confirmed{background:rgba(62,207,142,.15); color:var(--green);}
+  .badge.held{background:rgba(232,197,71,.15); color:var(--yellow);}
+  .badge.rescheduled{background:rgba(122,162,247,.15); color:var(--blue);}
+  .badge.cancelled{background:rgba(232,96,122,.15); color:var(--red);}
+  .empty{color:var(--muted); text-align:center; padding:24px;}
+
+  @media (max-width:680px){
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    thead{display:none;}
+    table, tbody, tr, td{display:block; width:100%;}
+    tr{border-bottom:1px solid var(--border); padding:10px 0;}
+    td{border:none; padding:3px 0; display:flex; justify-content:space-between; gap:10px;}
+    td::before{content:attr(data-label); color:var(--muted); font-size:11px; text-transform:uppercase;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Dice Ticket Inventory</h1>
+      <div class="sub">Live view of tickets across all accounts</div>
+      <div id="status">Loading…</div>
+    </div>
+    <button id="reloadBtn">Reload</button>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+  <div class="sub" style="margin:-10px 0 18px;">Past-event totals reflect the scraper's recent history (capped per account), not full all-time archive.</div>
+
+  <div class="section">
+    <h2>Spend by Account (currently held tickets)</h2>
+    <div id="spendByAccount"></div>
+  </div>
+
+  <div class="section">
+    <div class="placeholder">Profit tracking — coming soon</div>
+  </div>
+
+  <div class="section">
+    <h2>Ticket Inventory</h2>
+    <div class="filters">
+      <input id="search" type="text" placeholder="Search event or venue…">
+      <select id="accountFilter"><option value="">All accounts</option></select>
+      <select id="timeFilter">
+        <option value="">Upcoming + Past</option>
+        <option value="upcoming" selected>Upcoming only</option>
+        <option value="past">Past only</option>
+      </select>
+      <select id="statusFilter"><option value="">All statuses</option></select>
+      <select id="sortBy">
+        <option value="date-asc">Date ↑</option>
+        <option value="date-desc">Date ↓</option>
+        <option value="price-desc">Price ↓</option>
+        <option value="price-asc">Price ↑</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Event</th><th>Date</th><th>Venue</th><th>Account</th>
+          <th>Type</th><th>Qty</th><th>Total</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div id="emptyMsg" class="empty" style="display:none;">No tickets match these filters.</div>
+  </div>
+
+  <div class="sub" style="text-align:center; margin-top:10px;">
+    Data source: "Dice Ticket Inventory" Google Sheet — refreshed daily by the local scraper.
+  </div>
+
+</div>
+
+<script>
+// Two sources are tried in order — whichever one actually sends CORS headers your browser
+// accepts will win. Publish-to-web link first, classic gviz export as fallback.
+const CSV_URLS = [
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vT1HDLy3DkAbFJD_P_a-kguDC44utVL_nQv1Clb0M-6ycr71C7MfImETQTN0qL4_PnCMoHRWE-8cm4m/pub?gid=217795818&single=true&output=csv",
+  "https://docs.google.com/spreadsheets/d/1RDZeMVj0paQ_qUVmTZoUA6INS9Squg-OegW4C5fRIDc/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent("All Inventory"),
+];
+
+async function fetchCSV(){
+  let lastErr;
+  for(const url of CSV_URLS){
+    try{
+      const res = await fetch(url, {cache:"no-store"});
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      const text = await res.text();
+      if(text && text.trim().length) return text;
+      throw new Error("empty response");
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error("all sources failed");
+}
+
+const MONTHS = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+
+function parseEventDate(str){
+  if(!str) return null;
+  const m = str.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+(\d{1,2}),\s*(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if(!m) return null;
+  let [, mon, day, year, hour, min, ampm] = m;
+  hour = parseInt(hour,10);
+  if(/pm/i.test(ampm) && hour!==12) hour += 12;
+  if(/am/i.test(ampm) && hour===12) hour = 0;
+  return new Date(parseInt(year,10), MONTHS[mon.slice(0,3)], parseInt(day,10), hour, parseInt(min,10));
+}
+
+function parseMoney(str){
+  if(!str) return null;
+  const cleaned = String(str).replace(/[$,]/g,"").trim();
+  if(cleaned === "" || cleaned.toUpperCase() === "N/A") return null;
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+
+let ROWS = [];
+
+async function load(){
+  document.getElementById("status").textContent = "Loading…";
+  try{
+    const csv = await fetchCSV();
+    const parsed = Papa.parse(csv, {header:true, skipEmptyLines:true});
+    ROWS = parsed.data.map(r => {
+      const dateObj = parseEventDate(r["Date"]);
+      return {
+        account: (r["Account"] || "").trim(),
+        event: (r["Event Name"] || "").trim(),
+        dateStr: (r["Date"] || "").trim(),
+        dateObj,
+        venue: (r["Venue"] || "").trim(),
+        type: (r["Ticket Type"] || "").trim(),
+        qty: parseInt(r["Qty"], 10) || 0,
+        priceEach: parseMoney(r["Price Each"]),
+        total: parseMoney(r["Total"]),
+        status: (r["Status"] || "").trim().toLowerCase(),
+        lastUpdated: (r["Last Updated"] || "").trim(),
+        isFuture: dateObj ? dateObj.getTime() > Date.now() : true,
+      };
+    }).filter(r => r.event);
+
+    populateFilterOptions();
+    render();
+    const latest = ROWS.map(r=>r.lastUpdated).filter(Boolean).sort().pop();
+    document.getElementById("status").textContent = latest ? `Last updated ${latest}` : "Loaded";
+  }catch(err){
+    const isFileProtocol = location.protocol === "file:";
+    document.getElementById("status").textContent = isFileProtocol
+      ? "Can't load data while opened as a local file. Host this page (e.g. GitHub Pages) and open it via https:// instead — browsers block local files from fetching external data."
+      : "Failed to load sheet: " + err.message;
+  }
+}
+
+function populateFilterOptions(){
+  const accSel = document.getElementById("accountFilter");
+  const statSel = document.getElementById("statusFilter");
+  if(accSel.options.length <= 1){
+    [...new Set(ROWS.map(r=>r.account))].sort().forEach(a=>{
+      const o = document.createElement("option"); o.value=a; o.textContent=a; accSel.appendChild(o);
+    });
+  }
+  if(statSel.options.length <= 1){
+    [...new Set(ROWS.map(r=>r.status))].filter(Boolean).sort().forEach(s=>{
+      const o = document.createElement("option"); o.value=s; o.textContent = s[0].toUpperCase()+s.slice(1); statSel.appendChild(o);
+    });
+  }
+}
+
+function eventKey(r){ return r.event + "|" + r.dateStr; }
+
+function computeKPIs(){
+  const accounts = new Set(ROWS.map(r=>r.account));
+  const heldRows = ROWS.filter(r => r.isFuture && r.status !== "cancelled");
+  const ticketsHeld = heldRows.reduce((s,r)=>s+r.qty,0);
+  const historicalQty = ROWS.reduce((s,r)=>s+r.qty,0);
+  const heldValue = heldRows.reduce((s,r)=> s + (r.total ?? 0), 0);
+  const upcomingEvents = new Set(ROWS.filter(r=>r.isFuture && r.status!=="cancelled").map(eventKey)).size;
+  const pastEvents = new Set(ROWS.filter(r=>!r.isFuture).map(eventKey)).size;
+
+  const kpis = [
+    {val: accounts.size, lbl: "Accounts Connected"},
+    {val: ticketsHeld, lbl: "Tickets Currently Held"},
+    {val: "$" + heldValue.toFixed(2), lbl: "Value of Held Tickets"},
+    {val: historicalQty, lbl: "Total Historical Purchases"},
+    {val: upcomingEvents, lbl: "Upcoming Events"},
+    {val: pastEvents, lbl: "Past Events (recent)"},
+  ];
+  const el = document.getElementById("kpis");
+  el.innerHTML = kpis.map(k => `<div class="kpi"><div class="val">${k.val}</div><div class="lbl">${k.lbl}</div></div>`).join("");
+}
+
+function renderSpendByAccount(){
+  const heldRows = ROWS.filter(r => r.isFuture && r.status !== "cancelled");
+  const totals = {};
+  heldRows.forEach(r => { totals[r.account] = (totals[r.account]||0) + (r.total ?? 0); });
+  const max = Math.max(1, ...Object.values(totals));
+  const entries = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+  const el = document.getElementById("spendByAccount");
+  if(!entries.length){ el.innerHTML = '<div class="placeholder">No currently held tickets.</div>'; return; }
+  el.innerHTML = entries.map(([name,total]) => `
+    <div class="bar-row">
+      <div class="name">${name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(total/max*100).toFixed(1)}%"></div></div>
+      <div class="bar-val">$${total.toFixed(2)}</div>
+    </div>`).join("");
+}
+
+function currentFilters(){
+  return {
+    search: document.getElementById("search").value.trim().toLowerCase(),
+    account: document.getElementById("accountFilter").value,
+    time: document.getElementById("timeFilter").value,
+    status: document.getElementById("statusFilter").value,
+    sort: document.getElementById("sortBy").value,
+  };
+}
+
+function renderTable(){
+  const f = currentFilters();
+  let rows = ROWS.filter(r => {
+    if(f.search && !(r.event.toLowerCase().includes(f.search) || r.venue.toLowerCase().includes(f.search))) return false;
+    if(f.account && r.account !== f.account) return false;
+    if(f.status && r.status !== f.status) return false;
+    if(f.time === "upcoming" && !r.isFuture) return false;
+    if(f.time === "past" && r.isFuture) return false;
+    return true;
+  });
+
+  rows.sort((a,b) => {
+    if(f.sort === "date-asc") return (a.dateObj?.getTime()||0) - (b.dateObj?.getTime()||0);
+    if(f.sort === "date-desc") return (b.dateObj?.getTime()||0) - (a.dateObj?.getTime()||0);
+    if(f.sort === "price-desc") return (b.total ?? -1) - (a.total ?? -1);
+    if(f.sort === "price-asc") return (a.total ?? 1e15) - (b.total ?? 1e15);
+    return 0;
+  });
+
+  const body = document.getElementById("tableBody");
+  const emptyMsg = document.getElementById("emptyMsg");
+  if(!rows.length){
+    body.innerHTML = "";
+    emptyMsg.style.display = "block";
+    return;
+  }
+  emptyMsg.style.display = "none";
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td data-label="Event">${r.event}</td>
+      <td data-label="Date">${r.dateStr}</td>
+      <td data-label="Venue">${r.venue}</td>
+      <td data-label="Account">${r.account}</td>
+      <td data-label="Type">${r.type}</td>
+      <td data-label="Qty">${r.qty}</td>
+      <td data-label="Total">${r.total !== null ? "$"+r.total.toFixed(2) : "N/A"}</td>
+      <td data-label="Status"><span class="badge ${r.status}">${r.status}</span></td>
+    </tr>`).join("");
+}
+
+function render(){
+  computeKPIs();
+  renderSpendByAccount();
+  renderTable();
+}
+
+["search","accountFilter","timeFilter","statusFilter","sortBy"].forEach(id=>{
+  document.getElementById(id).addEventListener("input", renderTable);
+  document.getElementById(id).addEventListener("change", renderTable);
+});
+document.getElementById("reloadBtn").addEventListener("click", load);
+
+load();
+</script>
+</body>
+</html>
