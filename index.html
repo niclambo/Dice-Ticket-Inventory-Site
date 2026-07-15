@@ -44,6 +44,14 @@
 
   .placeholder{border:1px dashed var(--border); border-radius:10px; padding:14px; color:var(--muted); font-size:13px; text-align:center;}
 
+  .chart-wrap{display:flex; align-items:flex-start; gap:10px; height:220px; overflow-x:auto; padding:6px 4px 0;}
+  .chart-col{position:relative; flex:0 0 auto; display:flex; flex-direction:column; align-items:center; width:28px;}
+  .chart-bars{position:relative; width:18px; height:160px; background:linear-gradient(var(--border),var(--border)) center/100% 1px no-repeat;}
+  .chart-bar{position:absolute; left:1px; width:16px; border-radius:2px;}
+  .chart-bar.pos{background:var(--green); bottom:50%;}
+  .chart-bar.neg{background:var(--red); top:50%;}
+  .chart-label{font-size:9px; color:var(--muted); margin-top:8px; writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap;}
+
   .filters{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
   .filters input, .filters select{
     background:var(--panel-2); color:var(--text); border:1px solid var(--border);
@@ -88,12 +96,19 @@
   <div class="sub" style="margin:-10px 0 18px;">Past-event totals reflect the scraper's recent history (capped per account), not full all-time archive.</div>
 
   <div class="section">
-    <h2>Spend by Account (currently held tickets)</h2>
-    <div id="spendByAccount"></div>
+    <h2>Portfolio Performance</h2>
+    <div class="kpis" id="perfKpis"></div>
+    <div id="perfStatus" class="sub" style="margin-top:8px;"></div>
   </div>
 
   <div class="section">
-    <div class="placeholder">Profit tracking — coming soon</div>
+    <h2>Profit by Month</h2>
+    <div class="chart-wrap" id="monthlyChart"></div>
+  </div>
+
+  <div class="section">
+    <h2>Spend by Account (currently held tickets)</h2>
+    <div id="spendByAccount"></div>
   </div>
 
   <div class="section">
@@ -175,7 +190,111 @@ function parseMoney(str){
   return isNaN(n) ? null : n;
 }
 
+// Performance tab — financial tracking (profit/loss, invested capital, IRR).
+const PERF_CSV_URL = "https://docs.google.com/spreadsheets/d/1RDZeMVj0paQ_qUVmTZoUA6INS9Squg-OegW4C5fRIDc/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent("Performance");
+
 let ROWS = [];
+let PERF = { events: [], monthly: [], irr: null };
+
+async function fetchPerformance(){
+  const res = await fetch(PERF_CSV_URL, {cache:"no-store"});
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  const csv = await res.text();
+  const rows = Papa.parse(csv, {header:false, skipEmptyLines:false}).data;
+
+  const events = [];
+  const monthly = [];
+  let irr = null;
+
+  // Fixed cell reference: Performance!Q11 holds a manually-entered IRR figure that isn't
+  // part of any labeled column (row 0 = header row, so index 10 = spreadsheet row 11).
+  if(rows[10] && rows[10][16] && rows[10][16].trim()) irr = rows[10][16].trim();
+
+  for(let i = 1; i < rows.length; i++){
+    const r = rows[i];
+    if(!r) continue;
+
+    const event = (r[0] || "").trim();
+    if(event){
+      const numTickets      = parseInt(r[3], 10) || 0;
+      const totalInvestment = parseMoney(r[4]) || 0;
+      const currentMktPri   = parseMoney(r[5]);
+      const salePrice       = parseMoney(r[6]);
+      const profit          = parseMoney(r[7]) || 0;
+      const totalSold       = parseInt(r[9], 10) || 0;
+      const qtyHeld         = Math.max(numTickets - totalSold, 0);
+      events.push({
+        event, eventDate: (r[1] || "").trim(), numTickets, totalInvestment,
+        currentMktPri, salePrice, profit, totalSold, qtyHeld,
+        isUnsold: salePrice === null,
+        notes: (r[12] || "").trim(),
+      });
+    }
+
+    const month = (r[15] || "").trim();
+    if(month){
+      monthly.push({
+        month,
+        revenue:       parseMoney(r[16]),
+        netInvestment: parseMoney(r[17]),
+        profit:        parseMoney(r[18]),
+      });
+    }
+  }
+
+  return { events, monthly, irr };
+}
+
+function renderPerformance(){
+  const events = PERF.events;
+  let totalProfit = 0, totalInvested = 0, holdingValue = 0, ticketsHolding = 0, ticketsSold = 0;
+
+  events.forEach(e => {
+    totalInvested  += e.totalInvestment;
+    ticketsHolding += e.qtyHeld;
+    ticketsSold    += e.totalSold;
+    if(!e.isUnsold) totalProfit += e.profit;
+
+    const costBasisHeld = e.numTickets > 0 ? e.totalInvestment * (e.qtyHeld / e.numTickets) : 0;
+    holdingValue += (e.currentMktPri != null) ? e.currentMktPri * e.qtyHeld : costBasisHeld;
+  });
+
+  const cards = [
+    {val: "$" + totalProfit.toFixed(2),   lbl: "Total Profit (Realized)"},
+    {val: "$" + totalInvested.toFixed(2), lbl: "Total Invested Capital"},
+    {val: "$" + holdingValue.toFixed(2),  lbl: "Current Holding Value"},
+    {val: PERF.irr || "—",                lbl: "IRR"},
+    {val: ticketsHolding,                 lbl: "Tickets Currently Holding"},
+    {val: ticketsSold,                    lbl: "Tickets Sold"},
+  ];
+  document.getElementById("perfKpis").innerHTML = cards.map(k =>
+    `<div class="kpi"><div class="val">${k.val}</div><div class="lbl">${k.lbl}</div></div>`
+  ).join("");
+
+  document.getElementById("perfStatus").textContent =
+    "Source: Performance tab" + (PERF.irr ? " · IRR pulled from a fixed cell (Q11) — move it if you reorder rows above it." : "");
+
+  renderMonthlyChart();
+}
+
+function renderMonthlyChart(){
+  const el = document.getElementById("monthlyChart");
+  const data = PERF.monthly.filter(m => m.profit !== null);
+  if(!data.length){ el.innerHTML = '<div class="placeholder">No monthly data found.</div>'; return; }
+
+  const maxAbs = Math.max(1, ...data.map(m => Math.abs(m.profit)));
+  el.innerHTML = data.map(m => {
+    const h = Math.max(2, Math.round((Math.abs(m.profit) / maxAbs) * 78));
+    const cls = m.profit >= 0 ? "pos" : "neg";
+    return `
+      <div class="chart-col" title="${m.month}: $${m.profit.toFixed(2)}">
+        <div class="chart-bars">
+          <div class="chart-bar ${cls}" style="height:${h}px;"></div>
+        </div>
+        <div class="chart-label">${m.month}</div>
+      </div>`;
+  }).join("");
+}
 
 async function load(){
   document.getElementById("status").textContent = "Loading…";
@@ -209,6 +328,13 @@ async function load(){
     document.getElementById("status").textContent = isFileProtocol
       ? "Can't load data while opened as a local file. Host this page (e.g. GitHub Pages) and open it via https:// instead — browsers block local files from fetching external data."
       : "Failed to load sheet: " + err.message;
+  }
+
+  try{
+    PERF = await fetchPerformance();
+    renderPerformance();
+  }catch(err){
+    document.getElementById("perfStatus").textContent = "Failed to load Performance tab: " + err.message;
   }
 }
 
