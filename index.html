@@ -174,12 +174,21 @@ const MONTHS = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:
 function parseEventDate(str){
   if(!str) return null;
   const m = str.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+(\d{1,2}),\s*(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-  if(!m) return null;
-  let [, mon, day, year, hour, min, ampm] = m;
-  hour = parseInt(hour,10);
-  if(/pm/i.test(ampm) && hour!==12) hour += 12;
-  if(/am/i.test(ampm) && hour===12) hour = 0;
-  return new Date(parseInt(year,10), MONTHS[mon.slice(0,3)], parseInt(day,10), hour, parseInt(min,10));
+  if(m){
+    let [, mon, day, year, hour, min, ampm] = m;
+    hour = parseInt(hour,10);
+    if(/pm/i.test(ampm) && hour!==12) hour += 12;
+    if(/am/i.test(ampm) && hour===12) hour = 0;
+    return new Date(parseInt(year,10), MONTHS[mon.slice(0,3)], parseInt(day,10), hour, parseInt(min,10));
+  }
+  // Fallback: bare M/D/YYYY with no time (e.g. a manually-added row) — default to 10:00 PM,
+  // matching the placeholder convention used to backfill the sheet.
+  const m2 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m2){
+    const [, mo, day, year] = m2;
+    return new Date(parseInt(year,10), parseInt(mo,10)-1, parseInt(day,10), 22, 0);
+  }
+  return null;
 }
 
 function parseMoney(str){
@@ -223,11 +232,17 @@ async function fetchPerformance(){
       const profit          = parseMoney(r[7]) || 0;
       const totalSold       = parseInt(r[9], 10) || 0;
       const qtyHeld         = Math.max(numTickets - totalSold, 0);
+      const notes           = (r[12] || "").trim();
+      // "N Personal" in Notes marks N of this row's held tickets as personal-use,
+      // not resale inventory — those shouldn't count toward holding metrics.
+      const personalMatch   = notes.match(/(\d+)\s*personal/i);
+      const personalCount   = Math.min(personalMatch ? parseInt(personalMatch[1], 10) : 0, qtyHeld);
+      const sellableHeld    = qtyHeld - personalCount;
       events.push({
         event, eventDate: (r[1] || "").trim(), numTickets, totalInvestment,
-        currentMktPri, salePrice, profit, totalSold, qtyHeld,
+        currentMktPri, salePrice, profit, totalSold, qtyHeld, personalCount, sellableHeld,
         isUnsold: salePrice === null,
-        notes: (r[12] || "").trim(),
+        notes,
       });
     }
 
@@ -251,12 +266,12 @@ function renderPerformance(){
 
   events.forEach(e => {
     totalInvested  += e.totalInvestment;
-    ticketsHolding += e.qtyHeld;
+    ticketsHolding += e.sellableHeld;   // excludes personal-use tickets
     ticketsSold    += e.totalSold;
     if(!e.isUnsold) totalProfit += e.profit;
 
-    const costBasisHeld = e.numTickets > 0 ? e.totalInvestment * (e.qtyHeld / e.numTickets) : 0;
-    holdingValue += (e.currentMktPri != null) ? e.currentMktPri * e.qtyHeld : costBasisHeld;
+    const costBasisSellable = e.numTickets > 0 ? e.totalInvestment * (e.sellableHeld / e.numTickets) : 0;
+    holdingValue += (e.currentMktPri != null) ? e.currentMktPri * e.sellableHeld : costBasisSellable;
   });
 
   const cards = [
@@ -264,7 +279,7 @@ function renderPerformance(){
     {val: "$" + totalInvested.toFixed(2), lbl: "Total Invested Capital"},
     {val: "$" + holdingValue.toFixed(2),  lbl: "Current Holding Value"},
     {val: PERF.irr || "—",                lbl: "IRR"},
-    {val: ticketsHolding,                 lbl: "Tickets Currently Holding"},
+    {val: ticketsHolding,                 lbl: "Tickets Currently Holding (resale)"},
     {val: ticketsSold,                    lbl: "Tickets Sold"},
   ];
   document.getElementById("perfKpis").innerHTML = cards.map(k =>
@@ -272,7 +287,8 @@ function renderPerformance(){
   ).join("");
 
   document.getElementById("perfStatus").textContent =
-    "Source: Performance tab" + (PERF.irr ? " · IRR pulled from a fixed cell (Q11) — move it if you reorder rows above it." : "");
+    "Source: Performance tab · Personal-use tickets excluded from holding metrics" +
+    (PERF.irr ? " · IRR pulled from a fixed cell (Q11) — move it if you reorder rows above it." : "");
 
   renderMonthlyChart();
 }
