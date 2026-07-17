@@ -45,7 +45,7 @@
   .placeholder{border:1px dashed var(--border); border-radius:10px; padding:14px; color:var(--muted); font-size:13px; text-align:center;}
 
   /* Monthly breakdown — horizontal bars with dollar labels */
-  .month-list{display:flex; flex-direction:column; gap:9px;}
+  .month-list{display:flex; flex-direction:column; gap:9px; max-height:330px; overflow-y:auto; padding-right:6px;}
   .month-row{display:flex; align-items:center; gap:12px; font-size:13px;}
   .month-row .month-name{width:88px; flex-shrink:0; color:var(--muted); white-space:nowrap;}
   .month-row .bar-track{flex:1;}
@@ -257,39 +257,51 @@ async function fetchPerformance(){
   return { events };
 }
 
-// Metrics tab — YTD panel (col B, rows 1-12) + Monthly Breakdown (rows 16+).
+// Metrics tab — YTD panel (labels in col A, values in col B) +
+// Monthly Breakdown (columns D:G). We read the panel by LABEL rather than by
+// cell position, so it's immune to the CSV export dropping blank rows or
+// shifting things around.
 async function fetchMetrics(){
   const res = await fetch(METRICS_CSV_URL, {cache:"no-store"});
   if(!res.ok) throw new Error("HTTP " + res.status);
   const csv = await res.text();
   const rows = Papa.parse(csv, {header:false, skipEmptyLines:false}).data;
-  const cell = (r,c) => (rows[r] && rows[r][c] != null) ? String(rows[r][c]).trim() : "";
-  const intOf = s => parseInt(String(s).replace(/[^0-9.\-]/g,""), 10) || 0;
 
-  // Panel values live in column B (index 1). Sheet row N == rows[N-1].
+  // Build a label -> value map from columns A (label) and B (value).
+  const panelMap = {};
+  rows.forEach(r => {
+    if(!r) return;
+    const label = (r[0] || "").trim().toLowerCase();
+    if(label) panelMap[label] = r[1];
+  });
+  const g = lbl => panelMap[lbl.toLowerCase()];
+  const intOf = s => parseInt(String(s ?? "").replace(/[^0-9.\-]/g,""), 10) || 0;
+
   const panel = {
-    ticketsHolding:  intOf(cell(2,1)),              // B3
-    ticketsSold:     intOf(cell(3,1)),              // B4
-    totalInvested:   parseMoney(cell(5,1)) || 0,    // B6  (personal excluded)
-    currentHoldings: parseMoney(cell(7,1)) || 0,    // B8
-    personalCost:    parseMoney(cell(8,1)) || 0,    // B9
-    totalProfit:     parseMoney(cell(9,1)) || 0,    // B10
-    irr:             cell(10,1),                    // B11
+    ticketsHolding:  intOf(g("Total Tickets Holding")),
+    ticketsSold:     intOf(g("Total Tickets Sold")),
+    totalInvested:   parseMoney(g("Total Invested")) || 0,   // personal excluded
+    currentHoldings: parseMoney(g("Current Holdings")) || 0,
+    personalCost:    parseMoney(g("Personal Cost")) || 0,
+    totalProfit:     parseMoney(g("Total Profit")) || 0,
+    irr:             g("IRR"),
   };
 
-  // Monthly Breakdown starts at sheet row 16 -> rows[15]:
-  //   Month | Revenue | Net Invested | Profit
+  // Monthly Breakdown: columns D:G (indices 3-6). Match rows whose column D is a
+  // "Mon YYYY" label.
   const monthly = [];
-  for(let i = 15; i < rows.length; i++){
-    const label = cell(i,0);
-    if(!label) continue;
-    monthly.push({
-      month: label,
-      revenue:       parseMoney(cell(i,1)),
-      netInvestment: parseMoney(cell(i,2)),
-      profit:        parseMoney(cell(i,3)),
-    });
-  }
+  rows.forEach(r => {
+    if(!r) return;
+    const label = (r[3] || "").trim();
+    if(/^[A-Za-z]{3,}\s+\d{4}$/.test(label)){
+      monthly.push({
+        month: label,
+        revenue:       parseMoney(r[4]),
+        netInvestment: parseMoney(r[5]),
+        profit:        parseMoney(r[6]),
+      });
+    }
+  });
   return { panel, monthly };
 }
 
@@ -325,10 +337,17 @@ function renderPerformance(){
 
 function renderMonthlyChart(){
   const el = document.getElementById("monthlyChart");
-  // Only show months that actually have activity (revenue or profit).
-  const data = (METRICS.monthly || []).filter(m =>
-    ((m.revenue || 0) !== 0) || ((m.profit || 0) !== 0)
-  );
+  const nowYear = new Date().getFullYear();
+  // Show the full current calendar year (Jan–Dec), including quiet months, so
+  // there's a complete picture. The list is scrollable if it gets tall.
+  let data = (METRICS.monthly || []).filter(m => {
+    const y = parseInt((String(m.month).match(/(\d{4})$/) || [])[1], 10);
+    return y === nowYear;
+  });
+  // Fallback: if nothing this year, show whatever months have activity.
+  if(!data.length){
+    data = (METRICS.monthly || []).filter(m => (m.revenue || 0) !== 0 || (m.profit || 0) !== 0);
+  }
   if(!data.length){ el.innerHTML = '<div class="placeholder">No monthly data yet.</div>'; return; }
 
   const maxAbs = Math.max(1, ...data.map(m => Math.abs(m.profit || 0)));
