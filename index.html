@@ -143,6 +143,34 @@
     <div id="emptyMsg" class="empty" style="display:none;">No tickets match these filters.</div>
   </div>
 
+  <!-- ===================== TRANSFER PANEL ===================== -->
+  <div class="section" id="transferSection">
+    <h2>Transfer a Ticket</h2>
+    <div style="display:flex; flex-direction:column; gap:10px; max-width:560px;">
+      <input id="tfPass" type="password" placeholder="Passphrase"
+             style="background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:9px 11px; font-size:13px;">
+      <button id="tfLoad"
+              style="align-self:flex-start;">
+        Load my tickets
+      </button>
+
+      <select id="tfTicket"
+              style="display:none; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:9px 11px; font-size:13px;">
+      </select>
+
+      <input id="tfPhone" type="tel" placeholder="Friend's phone, e.g. +19175551234"
+             style="display:none; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:9px 11px; font-size:13px;">
+
+      <button id="tfSend"
+              style="display:none; background:var(--accent); color:#0b0f17; border:none; font-weight:700; align-self:flex-start;">
+        Transfer ticket
+      </button>
+
+      <div id="tfStatus" class="sub" style="margin-top:2px;"></div>
+    </div>
+  </div>
+  <!-- =================== TRANSFER PANEL END =================== -->
+
   <div class="sub" style="text-align:center; margin-top:10px;">
     Data source: "Dice Ticket Inventory" Google Sheet — refreshed daily by the cloud scraper.
   </div>
@@ -528,6 +556,108 @@ function render(){
 document.getElementById("reloadBtn").addEventListener("click", load);
 
 load();
+</script>
+
+<script>
+// ===================== TRANSFER PANEL LOGIC =====================
+(function(){
+  // Your deployed Cloudflare Worker URL (no trailing slash):
+  const TRANSFER_WORKER_URL = "https://dice-transfer.nicrlombardi.workers.dev";
+
+  const pass   = document.getElementById("tfPass");
+  const loadBt = document.getElementById("tfLoad");
+  const sel    = document.getElementById("tfTicket");
+  const phone  = document.getElementById("tfPhone");
+  const sendBt = document.getElementById("tfSend");
+  const status = document.getElementById("tfStatus");
+
+  let tickets = [];
+
+  function setStatus(msg, kind){
+    status.textContent = msg;
+    status.style.color = kind === "err" ? "var(--red)"
+                       : kind === "ok"  ? "var(--green)"
+                       : "var(--muted)";
+  }
+
+  async function loadTickets(){
+    if(!pass.value.trim()){ setStatus("Enter your passphrase first.", "err"); return; }
+    setStatus("Loading tickets…");
+    loadBt.disabled = true;
+    try{
+      const res = await fetch(TRANSFER_WORKER_URL + "/tickets", {
+        headers: { "x-passphrase": pass.value.trim() },
+      });
+      if(res.status === 401){ setStatus("Wrong passphrase.", "err"); return; }
+      if(!res.ok){ setStatus("Failed to load: HTTP " + res.status, "err"); return; }
+      const data = await res.json();
+      tickets = (data.tickets || []).filter(t => t.ticket_id && t.event_id);
+
+      const byAccount = {};
+      tickets.forEach((t, i) => {
+        (byAccount[t.account] = byAccount[t.account] || []).push({ t, i });
+      });
+      sel.innerHTML = '<option value="">— choose a ticket —</option>';
+      Object.keys(byAccount).sort().forEach(acct => {
+        const og = document.createElement("optgroup");
+        og.label = acct;
+        byAccount[acct].forEach(({ t, i }) => {
+          const o = document.createElement("option");
+          o.value = String(i);
+          o.textContent = `${t.event_name}${t.type ? " — " + t.type : ""} (#${t.ticket_id})`;
+          og.appendChild(o);
+        });
+        sel.appendChild(og);
+      });
+
+      sel.style.display = phone.style.display = sendBt.style.display = "block";
+      setStatus(`Loaded ${tickets.length} ticket(s) across your accounts.`, "ok");
+    }catch(e){
+      setStatus("Error: " + e.message + " (check the Worker URL is set correctly)", "err");
+    }finally{
+      loadBt.disabled = false;
+    }
+  }
+
+  async function sendTransfer(){
+    const idx = sel.value;
+    if(idx === ""){ setStatus("Pick a ticket.", "err"); return; }
+    const t = tickets[parseInt(idx, 10)];
+    const ph = phone.value.trim();
+    if(!/^\+\d{7,15}$/.test(ph)){ setStatus("Phone must be full international, e.g. +19175551234", "err"); return; }
+
+    const summary = `Transfer this ticket?\n\n${t.account}\n${t.event_name}${t.type ? " — " + t.type : ""}\nticket #${t.ticket_id}\n\nto ${ph}`;
+    if(!window.confirm(summary)) { setStatus("Cancelled.", ""); return; }
+
+    setStatus("Sending…");
+    sendBt.disabled = true;
+    try{
+      const res = await fetch(TRANSFER_WORKER_URL + "/transfer", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-passphrase": pass.value.trim() },
+        body: JSON.stringify({
+          account: t.account, event_id: t.event_id,
+          ticket_ids: [t.ticket_id], phone: ph,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if(res.status === 401){ setStatus("Wrong passphrase.", "err"); return; }
+      if(data.ok){
+        setStatus(`✅ Sent to ${ph}. It'll appear in your friend's Dice app. Reload tickets to refresh the list.`, "ok");
+        phone.value = "";
+      }else{
+        setStatus(`✗ Transfer failed (HTTP ${data.status || res.status}). ${data.detail || data.error || ""}`, "err");
+      }
+    }catch(e){
+      setStatus("Error: " + e.message, "err");
+    }finally{
+      sendBt.disabled = false;
+    }
+  }
+
+  loadBt.addEventListener("click", loadTickets);
+  sendBt.addEventListener("click", sendTransfer);
+})();
 </script>
 </body>
 </html>
