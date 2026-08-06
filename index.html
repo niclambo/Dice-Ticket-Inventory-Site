@@ -106,6 +106,33 @@
   .btn-primary{background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; align-self:flex-start;}
   .btn-ghost{background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:9px 14px; font-size:13px; cursor:pointer; align-self:flex-start;}
 
+  /* ---- Transfer list ---- */
+  .tf-toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:14px 0;}
+  .tf-search{flex:1; min-width:170px; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:9px; padding:9px 11px; font-size:13px;}
+  .tf-chips{display:flex; gap:6px; flex-wrap:wrap;}
+  .tf-chip{font-size:12px; padding:6px 12px; border-radius:20px; border:1px solid var(--border); background:var(--panel-2); color:var(--muted); cursor:pointer; white-space:nowrap;}
+  .tf-chip.active{background:color-mix(in srgb,var(--accent) 18%,transparent); border-color:var(--accent); color:var(--text);}
+  .tf-dayhdr{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--faint); margin:14px 2px 8px;}
+  .tcard{display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid var(--border); border-radius:11px; background:var(--panel-2); margin-bottom:8px; cursor:pointer; transition:border-color .15s, background .15s;}
+  .tcard:hover{border-color:var(--accent);}
+  .tcard.sel{border-color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent);}
+  .tbox{width:18px; height:18px; border-radius:5px; border:2px solid var(--faint); flex-shrink:0; position:relative;}
+  .tcard.sel .tbox{border-color:var(--accent); background:var(--accent);}
+  .tcard.sel .tbox::after{content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; font-weight:800;}
+  .tinfo{flex:1; min-width:0;}
+  .tname{font-weight:600; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .tmeta{color:var(--muted); font-size:12px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .tright{display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0;}
+  .acct{font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; background:var(--panel); border:1px solid var(--border); color:var(--muted); white-space:nowrap;}
+  .ttype{font-size:11px; color:var(--faint);}
+  .tf-actionbar{position:sticky; bottom:10px; margin-top:14px; padding:13px; border:1px solid var(--border); border-radius:12px; background:var(--panel); box-shadow:0 -2px 14px rgba(0,0,0,.30);}
+  .ab-sel{font-size:12.5px; color:var(--muted); margin-bottom:9px;}
+  .ab-sel b{color:var(--text);}
+  .ab-row{display:flex; gap:9px; flex-wrap:wrap;}
+  .ab-phone{flex:1; min-width:180px; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:9px; padding:10px 12px; font-size:13px;}
+  .ab-send{background:var(--accent); color:#fff; border:none; border-radius:9px; padding:10px 18px; font-weight:700; font-size:13px; cursor:pointer;}
+  .ab-send:disabled{opacity:.5; cursor:not-allowed;}
+
   /* ---- Skeleton + error ---- */
   .sk{background:linear-gradient(90deg,var(--panel-2) 25%,var(--border) 37%,var(--panel-2) 63%); background-size:400% 100%; animation:shimmer 1.3s infinite; border-radius:6px;}
   @keyframes shimmer{0%{background-position:100% 0;} 100%{background-position:-100% 0;}}
@@ -211,15 +238,29 @@
   <!-- ================= TRANSFER ================= -->
   <div class="pane" data-pane="transfer">
     <div class="card">
-      <h2>Transfer a Ticket</h2>
-      <div class="form-col">
-        <input id="tfPass" type="password" placeholder="Passphrase">
-        <button id="tfLoad" class="btn-ghost">Load my tickets</button>
-        <select id="tfTicket" style="display:none;"></select>
-        <input id="tfPhone" type="tel" placeholder="Friend's phone, e.g. +19175551234" style="display:none;">
-        <button id="tfSend" class="btn-primary" style="display:none;">Transfer ticket</button>
-        <div id="tfStatus" class="cap" style="margin-top:2px;"></div>
-        <div class="cap">You'll confirm a summary popup before anything sends.</div>
+      <h2>Transfer Tickets</h2>
+      <div class="cap" style="margin-bottom:12px;">Enter your passphrase to load tickets. Select one or more, add your friend's phone, and send. You'll confirm before anything goes out.</div>
+
+      <div style="max-width:340px; margin-bottom:6px;">
+        <input id="tfPass" type="password" placeholder="Passphrase — auto-loads on Enter" autocomplete="off"
+               style="width:100%; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:9px; padding:9px 11px; font-size:13px;">
+      </div>
+
+      <div id="tfToolbar" class="tf-toolbar" style="display:none;">
+        <input id="tfSearch" class="tf-search" placeholder="Search event, type, or account…">
+        <div id="tfChips" class="tf-chips"></div>
+      </div>
+
+      <div id="tfList" class="tf-list"></div>
+      <div id="tfEmpty" class="empty" style="display:none;"></div>
+
+      <div id="tfActionBar" class="tf-actionbar" style="display:none;">
+        <div id="tfSelSummary" class="ab-sel">No tickets selected.</div>
+        <div class="ab-row">
+          <input id="tfPhone" class="ab-phone" type="tel" placeholder="Friend's phone, e.g. +19175551234">
+          <button id="tfSend" class="ab-send" disabled>Transfer</button>
+        </div>
+        <div id="tfStatus" class="cap" style="margin-top:8px;"></div>
       </div>
     </div>
   </div>
@@ -696,99 +737,211 @@ load();
 (function(){
   const TRANSFER_WORKER_URL = "https://dice-transfer.nicrlombardi.workers.dev";
 
-  const pass   = document.getElementById("tfPass");
-  const loadBt = document.getElementById("tfLoad");
-  const sel    = document.getElementById("tfTicket");
-  const phone  = document.getElementById("tfPhone");
-  const sendBt = document.getElementById("tfSend");
-  const status = document.getElementById("tfStatus");
+  const pass    = document.getElementById("tfPass");
+  const toolbar = document.getElementById("tfToolbar");
+  const search  = document.getElementById("tfSearch");
+  const chipsEl = document.getElementById("tfChips");
+  const listEl  = document.getElementById("tfList");
+  const emptyEl = document.getElementById("tfEmpty");
+  const bar     = document.getElementById("tfActionBar");
+  const summary = document.getElementById("tfSelSummary");
+  const phone   = document.getElementById("tfPhone");
+  const sendBt  = document.getElementById("tfSend");
+  const status  = document.getElementById("tfStatus");
 
-  let tickets = [];
+  let tickets   = [];            // all loaded tickets
+  let selected  = new Set();     // selected ticket keys
+  let acctFilter = "";           // "" = all accounts
+  let passphrase = "";
+  let loading = false, loadedForPass = null, lastFailedPass = null;
+
+  const keyOf = t => `${t.account}|${t.event_id}|${t.ticket_id}`;
 
   function setStatus(msg, kind){
-    status.textContent = msg;
+    status.textContent = msg || "";
     status.style.color = kind === "err" ? "var(--red)"
                        : kind === "ok"  ? "var(--green)"
                        : "var(--faint)";
   }
 
-  async function loadTickets(){
-    if(!pass.value.trim()){ setStatus("Enter your passphrase first.", "err"); return; }
-    setStatus("Loading tickets…");
-    loadBt.disabled = true;
+  // ---- date helpers ----
+  function parseTfDate(s){
+    if(!s) return null;
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function dayLabel(d){
+    if(!d) return "Date unknown";
+    return d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"});
+  }
+  function metaLine(t){
+    const d = parseTfDate(t.date);
+    const dt = d ? d.toLocaleDateString("en-US",{month:"short",day:"2-digit",year:"numeric"}) : (t.date || "");
+    const tm = d ? d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}) : "";
+    return [dt, tm].filter(Boolean).join(" · ");
+  }
+
+  // ---- auto-load ----
+  async function loadTickets(v){
+    if(loading) return;
+    loading = true; setStatus("Loading tickets…");
     try{
-      const res = await fetch(TRANSFER_WORKER_URL + "/tickets", {
-        headers: { "x-passphrase": pass.value.trim() },
-      });
-      if(res.status === 401){ setStatus("Wrong passphrase.", "err"); return; }
+      const res = await fetch(TRANSFER_WORKER_URL + "/tickets", { headers: { "x-passphrase": v } });
+      if(res.status === 401){ lastFailedPass = v; setStatus("Wrong passphrase.", "err"); return; }
       if(!res.ok){ setStatus("Failed to load: HTTP " + res.status, "err"); return; }
       const data = await res.json();
       tickets = (data.tickets || []).filter(t => t.ticket_id && t.event_id);
-
-      const byAccount = {};
-      tickets.forEach((t, i) => {
-        (byAccount[t.account] = byAccount[t.account] || []).push({ t, i });
-      });
-      sel.innerHTML = '<option value="">— choose a ticket —</option>';
-      Object.keys(byAccount).sort().forEach(acct => {
-        const og = document.createElement("optgroup");
-        og.label = acct;
-        byAccount[acct].forEach(({ t, i }) => {
-          const o = document.createElement("option");
-          o.value = String(i);
-          o.textContent = `${t.event_name}${t.type ? " — " + t.type : ""} (#${t.ticket_id})`;
-          og.appendChild(o);
-        });
-        sel.appendChild(og);
-      });
-
-      sel.style.display = phone.style.display = sendBt.style.display = "block";
-      setStatus(`Loaded ${tickets.length} ticket(s) across your accounts.`, "ok");
+      passphrase = v; loadedForPass = v; lastFailedPass = null;
+      selected.clear();
+      buildChips(); renderList(); updateBar();
+      setStatus(tickets.length + " ticket(s) loaded across your accounts.", "ok");
     }catch(e){
-      setStatus("Error: " + e.message + " (check the Worker URL is set correctly)", "err");
-    }finally{
-      loadBt.disabled = false;
-    }
+      setStatus("Error: " + e.message + " (check the Worker URL / your connection)", "err");
+    }finally{ loading = false; }
+  }
+  function attemptLoad(force){
+    const v = pass.value.trim();
+    if(!v || loading) return;
+    if(v === loadedForPass) return;          // already loaded this passphrase
+    if(!force && v === lastFailedPass) return; // only retry a known-bad pass on Enter
+    loadTickets(v);
+  }
+  let deb;
+  pass.addEventListener("input", () => {
+    clearTimeout(deb);
+    if(pass.value.trim() !== loadedForPass) loadedForPass = null;
+    deb = setTimeout(() => attemptLoad(false), 900);
+  });
+  pass.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); attemptLoad(true); } });
+  pass.addEventListener("blur", () => attemptLoad(false));
+
+  // ---- account filter chips ----
+  function buildChips(){
+    const accts = [...new Set(tickets.map(t => t.account))].sort();
+    let html = `<span class="tf-chip ${acctFilter===""?"active":""}" data-acct="">All accounts</span>`;
+    html += accts.map(a => `<span class="tf-chip ${acctFilter===a?"active":""}" data-acct="${a}">${a}</span>`).join("");
+    chipsEl.innerHTML = html;
+    chipsEl.querySelectorAll(".tf-chip").forEach(c => c.addEventListener("click", () => {
+      acctFilter = c.getAttribute("data-acct");
+      buildChips(); renderList();
+    }));
+    toolbar.style.display = tickets.length ? "flex" : "none";
   }
 
+  // ---- list ----
+  function visibleTickets(){
+    const q = search.value.trim().toLowerCase();
+    return tickets.filter(t => {
+      if(acctFilter && t.account !== acctFilter) return false;
+      if(q){
+        const hay = `${t.event_name} ${t.type} ${t.account}`.toLowerCase();
+        if(!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+  function renderList(){
+    const vis = visibleTickets().slice().sort((a,b) => {
+      const da = parseTfDate(a.date), db = parseTfDate(b.date);
+      return (da ? da.getTime() : 8e15) - (db ? db.getTime() : 8e15);
+    });
+    if(!vis.length){
+      listEl.innerHTML = "";
+      emptyEl.style.display = "block";
+      emptyEl.textContent = tickets.length ? "No tickets match your filters." : "No tickets in your accounts right now.";
+      return;
+    }
+    emptyEl.style.display = "none";
+    const groups = [], idx = {};
+    vis.forEach(t => {
+      const lbl = dayLabel(parseTfDate(t.date));
+      if(!(lbl in idx)){ idx[lbl] = groups.length; groups.push({ lbl, items: [] }); }
+      groups[idx[lbl]].items.push(t);
+    });
+    listEl.innerHTML = groups.map(g => {
+      const cards = g.items.map(t => {
+        const k = keyOf(t);
+        const cls = selected.has(k) ? "sel" : "";
+        return `<div class="tcard ${cls}" data-key="${k}">
+          <div class="tbox"></div>
+          <div class="tinfo">
+            <div class="tname">${t.event_name || "Event"}</div>
+            <div class="tmeta">${metaLine(t)}${t.ticket_id ? ` · #${t.ticket_id}` : ""}</div>
+          </div>
+          <div class="tright"><span class="acct">${t.account}</span>${t.type ? `<span class="ttype">${t.type}</span>` : ""}</div>
+        </div>`;
+      }).join("");
+      return `<div class="daygroup"><div class="tf-dayhdr">${g.lbl}</div>${cards}</div>`;
+    }).join("");
+    listEl.querySelectorAll(".tcard").forEach(c => c.addEventListener("click", () => {
+      const k = c.getAttribute("data-key");
+      if(selected.has(k)) selected.delete(k); else selected.add(k);
+      c.classList.toggle("sel");
+      updateBar();
+    }));
+  }
+
+  // ---- action bar ----
+  function selectedTickets(){ return tickets.filter(t => selected.has(keyOf(t))); }
+  function updateBar(){
+    bar.style.display = tickets.length ? "block" : "none";
+    const sel = selectedTickets();
+    if(!sel.length){ summary.textContent = "No tickets selected."; sendBt.disabled = true; sendBt.textContent = "Transfer"; return; }
+    const names = sel.slice(0,2).map(t => t.event_name).join(", ");
+    const extra = sel.length > 2 ? ` +${sel.length - 2} more` : "";
+    summary.innerHTML = `<b>${sel.length}</b> selected — ${names}${extra}`;
+    sendBt.disabled = false;
+    sendBt.textContent = sel.length > 1 ? `Transfer ${sel.length} tickets` : "Transfer ticket";
+  }
+
+  // ---- send (grouped by account + event; one call per group) ----
   async function sendTransfer(){
-    const idx = sel.value;
-    if(idx === ""){ setStatus("Pick a ticket.", "err"); return; }
-    const t = tickets[parseInt(idx, 10)];
+    const sel = selectedTickets();
+    if(!sel.length){ setStatus("Select at least one ticket.", "err"); return; }
     const ph = phone.value.trim();
     if(!/^\+\d{7,15}$/.test(ph)){ setStatus("Phone must be full international, e.g. +19175551234", "err"); return; }
 
-    const summary = `Transfer this ticket?\n\n${t.account}\n${t.event_name}${t.type ? " — " + t.type : ""}\nticket #${t.ticket_id}\n\nto ${ph}`;
-    if(!window.confirm(summary)) { setStatus("Cancelled.", ""); return; }
+    const lines = sel.map(t => `• ${t.event_name}${t.type ? " — " + t.type : ""} (${t.account}, #${t.ticket_id})`).join("\n");
+    if(!window.confirm(`Transfer ${sel.length} ticket(s) to ${ph}?\n\n${lines}`)){ setStatus("Cancelled.", ""); return; }
 
-    setStatus("Sending…");
+    const groups = {};
+    sel.forEach(t => {
+      const gk = t.account + "||" + t.event_id;
+      (groups[gk] = groups[gk] || { account: t.account, event_id: t.event_id, ids: [] }).ids.push(t.ticket_id);
+    });
+
+    setStatus(`Sending ${sel.length} ticket(s)…`);
     sendBt.disabled = true;
-    try{
-      const res = await fetch(TRANSFER_WORKER_URL + "/transfer", {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-passphrase": pass.value.trim() },
-        body: JSON.stringify({
-          account: t.account, event_id: t.event_id,
-          ticket_ids: [t.ticket_id], phone: ph,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if(res.status === 401){ setStatus("Wrong passphrase.", "err"); return; }
-      if(data.ok){
-        setStatus(`✅ Sent to ${ph}. It'll appear in your friend's Dice app. Reload tickets to refresh the list.`, "ok");
-        phone.value = "";
-      }else{
-        setStatus(`✗ Transfer failed (HTTP ${data.status || res.status}). ${data.detail || data.error || ""}`, "err");
-      }
-    }catch(e){
-      setStatus("Error: " + e.message, "err");
-    }finally{
-      sendBt.disabled = false;
+    let ok = 0, fail = 0; const failMsgs = [], sentKeys = [];
+    for(const gk in groups){
+      const g = groups[gk];
+      try{
+        const res = await fetch(TRANSFER_WORKER_URL + "/transfer", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-passphrase": passphrase },
+          body: JSON.stringify({ account: g.account, event_id: g.event_id, ticket_ids: g.ids, phone: ph }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if(data.ok){ ok += g.ids.length; g.ids.forEach(id => sentKeys.push(`${g.account}|${g.event_id}|${id}`)); }
+        else { fail += g.ids.length; failMsgs.push(`HTTP ${data.status || res.status} ${data.detail || data.error || ""}`.trim()); }
+      }catch(e){ fail += g.ids.length; failMsgs.push(e.message); }
     }
+    // Drop successfully-sent tickets from the list locally.
+    if(sentKeys.length){
+      const s = new Set(sentKeys);
+      tickets = tickets.filter(t => !s.has(keyOf(t)));
+      sentKeys.forEach(k => selected.delete(k));
+    }
+    buildChips(); renderList(); updateBar();
+    sendBt.disabled = false;
+    if(fail === 0)      setStatus(`✅ Sent ${ok} ticket(s) to ${ph}. They'll appear in your friend's Dice app.`, "ok");
+    else if(ok === 0)  setStatus(`✗ All transfers failed. ${failMsgs[0] || ""}`, "err");
+    else               setStatus(`Partly done — ${ok} sent, ${fail} failed. ${failMsgs[0] || ""}`, "err");
+    if(ok) phone.value = "";
   }
 
-  loadBt.addEventListener("click", loadTickets);
   sendBt.addEventListener("click", sendTransfer);
+  search.addEventListener("input", renderList);
 })();
 </script>
 </body>
