@@ -2,214 +2,791 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Ticket Portfolio</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235b8cff'/%3E%3Ccircle cx='11' cy='11' r='2.4' fill='%23fff'/%3E%3Ccircle cx='21' cy='11' r='2.4' fill='%23fff'/%3E%3Ccircle cx='11' cy='21' r='2.4' fill='%23fff'/%3E%3Ccircle cx='21' cy='21' r='2.4' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c8f542'/%3E%3Cpath d='M8 16h16M16 8v16' stroke='%23080a0f' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  :root[data-theme="dark"]{ /* Neutral Slate */
-    --bg:#0a0b0e; --panel:#16171b; --panel-2:#1e2026; --border:#2a2d34;
-    --text:#f2f4f7; --muted:#9aa1ac; --faint:#5f6672; --accent:#4f8cff;
-    --green:#10b981; --yellow:#e8c547; --blue:#7aa2f7; --red:#f43f5e;
-    --shadow:0 1px 2px rgba(0,0,0,.30);
-  }
-  :root[data-theme="light"]{ /* Daylight */
-    --bg:#f5f7fa; --panel:#ffffff; --panel-2:#eef2f8; --border:#e2e8f0;
-    --text:#0f172a; --muted:#5a6678; --faint:#94a3b8; --accent:#2563eb;
-    --green:#16a34a; --yellow:#b8860b; --blue:#2563eb; --red:#dc2626;
-    --shadow:0 1px 3px rgba(20,30,60,.08);
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0; background:var(--bg); color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .num{font-variant-numeric:tabular-nums;}
+/* ── Token system ── */
+:root {
+  --bg:       #080a0f;
+  --surface:  #0f1117;
+  --surface2: #161820;
+  --border:   #1e2028;
+  --border2:  #2a2d38;
+  --text:     #f0f2f7;
+  --muted:    #7c8494;
+  --faint:    #3e4352;
+  --lime:     #c8f542;
+  --lime-dim: rgba(200,245,66,.10);
+  --green:    #34d399;
+  --red:      #f43f5e;
+  --amber:    #f59e0b;
+  --blue:     #60a5fa;
+  --shadow:   0 1px 3px rgba(0,0,0,.5);
+}
+:root[data-theme="light"] {
+  --bg:       #f0f2f6;
+  --surface:  #ffffff;
+  --surface2: #e8eaf0;
+  --border:   #dde1ea;
+  --border2:  #c8cdd8;
+  --text:     #0a0c12;
+  --muted:    #5a6175;
+  --faint:    #b0b6c4;
+  --lime:     #5c9e00;
+  --lime-dim: rgba(92,158,0,.08);
+  --green:    #16a34a;
+  --red:      #dc2626;
+  --amber:    #b45309;
+  --blue:     #2563eb;
+  --shadow:   0 1px 4px rgba(0,0,0,.08);
+}
 
-  /* ---- Top nav ---- */
-  .nav{
-    position:sticky; top:0; z-index:20;
-    display:flex; align-items:center; justify-content:space-between;
-    padding:12px 20px; border-bottom:1px solid var(--border);
-    background:color-mix(in srgb, var(--panel) 82%, transparent);
-    backdrop-filter:blur(8px);
-  }
-  .brand{display:flex; align-items:center; gap:9px; font-weight:700; font-size:15px;}
-  .logo{width:20px; height:20px; border-radius:6px; background:linear-gradient(135deg,var(--accent),#8fb0ff); flex-shrink:0;}
-  .navright{display:flex; align-items:center; gap:12px;}
-  #status{color:var(--muted); font-size:12px;}
-  .nav button{background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:12px; cursor:pointer;}
-  .nav button:hover{border-color:var(--accent);}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* ---- Tabs ---- */
-  .tabs{position:sticky; top:45px; z-index:19; display:flex; gap:2px; padding:0 14px; border-bottom:1px solid var(--border); background:var(--panel); overflow-x:auto;}
-  .tab{padding:12px 16px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap;}
-  .tab:hover{color:var(--text);}
-  .tab.active{color:var(--text); border-bottom-color:var(--accent);}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
 
-  .wrap{max-width:1100px; margin:0 auto; padding:20px 16px 60px;}
-  .pane{display:none;}
-  .pane.active{display:block; animation:fade .22s ease;}
-  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+/* ── Nav ── */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
 
-  /* ---- KPI strip ---- */
-  .kpis{display:flex; flex-wrap:wrap; background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:16px; box-shadow:var(--shadow);}
-  .kpi{flex:1 1 0; min-width:130px; padding:15px 16px; border-right:1px solid var(--border); border-bottom:1px solid transparent;}
-  .kpi:last-child{border-right:none;}
-  .kpi .lbl{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;}
-  .kpi .val{font-size:19px; font-weight:700;}
-  .kpi.primary{background:linear-gradient(180deg,color-mix(in srgb,var(--green) 12%,transparent),transparent);}
-  .kpi.primary .val{font-size:26px;}
-  .kpis.sub .kpi{padding:11px 16px;}
-  .kpis.sub .val{font-size:15px; font-weight:600;}
-  .pos{color:var(--green);} .neg{color:var(--red);}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.3px;
+  color: var(--text);
+  text-decoration: none;
+}
 
-  .grid2{display:grid; grid-template-columns:1.5fr 1fr; gap:16px;}
-  @media (max-width:760px){ .grid2{grid-template-columns:1fr;} .kpi{flex:1 1 40%;} }
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  background: var(--lime);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
 
-  .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:var(--shadow);}
-  .card h2{font-size:14px; font-weight:600; margin:0 0 12px;}
-  .cap{color:var(--faint); font-size:11px; margin-top:10px;}
+.brand-mark svg { display: block; }
 
-  /* ---- Spend bars ---- */
-  .bar-row{display:flex; align-items:center; gap:10px; margin-bottom:11px; font-size:12.5px;}
-  .bar-row .name{width:130px; flex-shrink:0; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .bar-track{flex:1; background:var(--panel-2); border-radius:5px; height:16px; overflow:hidden;}
-  .bar-fill{height:100%; background:linear-gradient(90deg,var(--accent),#8fb0ff); border-radius:5px;}
-  .bar-val{width:70px; text-align:right; flex-shrink:0;}
-  .placeholder{border:1px dashed var(--border); border-radius:10px; padding:14px; color:var(--muted); font-size:13px; text-align:center;}
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-  /* ---- Chart ---- */
-  .chart-box{height:240px;}
+.updated-pill {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
 
-  /* ---- Filters + table ---- */
-  .filters{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
-  .filters input, .filters select{background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px;}
-  .filters input{flex:1; min-width:160px;}
-  table{width:100%; border-collapse:collapse; font-size:13px;}
-  th, td{text-align:left; padding:9px 8px; border-bottom:1px solid var(--border);}
-  th{color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap;}
-  td.r, th.r{text-align:right;}
-  tbody tr:hover{background:var(--panel-2);}
-  .badge{display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600;}
-  .badge.confirmed{background:color-mix(in srgb,var(--green) 16%,transparent); color:var(--green);}
-  .badge.held{background:color-mix(in srgb,var(--yellow) 18%,transparent); color:var(--yellow);}
-  .badge.rescheduled{background:color-mix(in srgb,var(--blue) 16%,transparent); color:var(--blue);}
-  .badge.cancelled{background:color-mix(in srgb,var(--red) 16%,transparent); color:var(--red);}
-  .empty{color:var(--muted); text-align:center; padding:24px;}
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color .15s, color .15s;
+}
+.icon-btn:hover { border-color: var(--border2); color: var(--text); }
 
-  /* ---- Transfer ---- */
-  .form-col{display:flex; flex-direction:column; gap:10px; max-width:540px;}
-  .form-col input, .form-col select{background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:9px 11px; font-size:13px;}
-  .btn-primary{background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; align-self:flex-start;}
-  .btn-ghost{background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:9px 14px; font-size:13px; cursor:pointer; align-self:flex-start;}
+/* ── Tab switcher ── */
+.tab-bar {
+  position: sticky;
+  top: 52px;
+  z-index: 29;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
 
-  /* ---- Transfer list ---- */
-  .tf-toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:14px 0;}
-  .tf-search{flex:1; min-width:170px; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:9px; padding:9px 11px; font-size:13px;}
-  .tf-chips{display:flex; gap:6px; flex-wrap:wrap;}
-  .tf-chip{font-size:12px; padding:6px 12px; border-radius:20px; border:1px solid var(--border); background:var(--panel-2); color:var(--muted); cursor:pointer; white-space:nowrap;}
-  .tf-chip.active{background:color-mix(in srgb,var(--accent) 18%,transparent); border-color:var(--accent); color:var(--text);}
-  .tf-dayhdr{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--faint); margin:14px 2px 8px;}
-  .tcard{display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid var(--border); border-radius:11px; background:var(--panel-2); margin-bottom:8px; cursor:pointer; transition:border-color .15s, background .15s;}
-  .tcard:hover{border-color:var(--accent);}
-  .tcard.sel{border-color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent);}
-  .tbox{width:18px; height:18px; border-radius:5px; border:2px solid var(--faint); flex-shrink:0; position:relative;}
-  .tcard.sel .tbox{border-color:var(--accent); background:var(--accent);}
-  .tcard.sel .tbox::after{content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; font-weight:800;}
-  .tinfo{flex:1; min-width:0;}
-  .tname{font-weight:600; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .tmeta{color:var(--muted); font-size:12px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .tright{display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0;}
-  .acct{font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; background:var(--panel); border:1px solid var(--border); color:var(--muted); white-space:nowrap;}
-  .ttype{font-size:11px; color:var(--faint);}
-  .tf-actionbar{position:sticky; bottom:10px; margin-top:14px; padding:13px; border:1px solid var(--border); border-radius:12px; background:var(--panel); box-shadow:0 -2px 14px rgba(0,0,0,.30);}
-  .ab-sel{font-size:12.5px; color:var(--muted); margin-bottom:9px;}
-  .ab-sel b{color:var(--text);}
-  .ab-row{display:flex; gap:9px; flex-wrap:wrap;}
-  .ab-phone{flex:1; min-width:180px; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:9px; padding:10px 12px; font-size:13px;}
-  .ab-send{background:var(--accent); color:#fff; border:none; border-radius:9px; padding:10px 18px; font-weight:700; font-size:13px; cursor:pointer;}
-  .ab-send:disabled{opacity:.5; cursor:not-allowed;}
+.tab {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, color .12s;
+  border: 1px solid transparent;
+}
+.tab:hover { color: var(--text); background: var(--surface2); }
+.tab.active {
+  color: var(--bg);
+  background: var(--lime);
+  border-color: var(--lime);
+  font-weight: 600;
+}
 
-  /* ---- Skeleton + error ---- */
-  .sk{background:linear-gradient(90deg,var(--panel-2) 25%,var(--border) 37%,var(--panel-2) 63%); background-size:400% 100%; animation:shimmer 1.3s infinite; border-radius:6px;}
-  @keyframes shimmer{0%{background-position:100% 0;} 100%{background-position:-100% 0;}}
-  .sk-line{height:12px; margin:6px 0;}
-  .err-banner{display:none; background:color-mix(in srgb,var(--red) 14%,transparent); border:1px solid var(--red); color:var(--text); border-radius:10px; padding:11px 14px; font-size:13px; margin-bottom:16px;}
+/* ── Layout ── */
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
 
-  @media (max-width:680px){
-    thead{display:none;}
-    table, tbody, tr, td{display:block; width:100%;}
-    tr{border-bottom:1px solid var(--border); padding:10px 0;}
-    td{border:none; padding:3px 0; display:flex; justify-content:space-between; gap:10px; text-align:right;}
-    td::before{content:attr(data-label); color:var(--muted); font-size:11px; text-transform:uppercase; text-align:left;}
-  }
+.pane { display: none; }
+.pane.active { display: block; animation: fadein .18s ease; }
+@keyframes fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+/* ── KPI strip ── */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.kpi {
+  background: var(--surface);
+  padding: 16px 18px;
+  position: relative;
+}
+
+.kpi.hero {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--lime) 8%, var(--surface)), var(--surface));
+}
+
+.kpi-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 8px;
+  letter-spacing: 0;
+}
+
+.kpi-val {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.kpi.hero .kpi-val { font-size: 28px; }
+
+.kpi-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--lime);
+  border-radius: 14px 0 0 14px;
+}
+
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ── Grid ── */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* ── Cards ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.card-head {
+  padding: 14px 18px 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.card-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.card-body { padding: 14px 18px 18px; }
+
+/* ── Chart ── */
+.chart-wrap { height: 220px; }
+
+.chart-legend {
+  display: flex;
+  gap: 16px;
+  padding: 0 18px 14px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.chart-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+/* ── Spend bars ── */
+.spend-list { display: flex; flex-direction: column; gap: 10px; }
+
+.spend-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 72px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.spend-name {
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.spend-track {
+  height: 5px;
+  background: var(--surface2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.spend-fill {
+  height: 100%;
+  background: var(--lime);
+  border-radius: 3px;
+  transition: width .4s ease;
+}
+
+.spend-val {
+  text-align: right;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ── Sub KPIs ── */
+.sub-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.sub-kpi {
+  background: var(--surface);
+  padding: 12px 16px;
+}
+.sub-kpi .kpi-val { font-size: 17px; }
+@media (max-width: 600px) {
+  .sub-kpis { grid-template-columns: repeat(2, 1fr); }
+  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Tables ── */
+.table-wrap { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead th {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  background: var(--surface);
+}
+
+tbody td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+tbody tr:last-child td { border-bottom: none; }
+
+tbody tr:hover td { background: var(--surface2); }
+
+.r { text-align: right; }
+
+/* ── Performance table row colors ── */
+tr.perf-sold td { background: color-mix(in srgb, var(--green) 4%, transparent); }
+tr.perf-loss td { background: color-mix(in srgb, var(--red) 4%, transparent); }
+tr.perf-sold:hover td { background: color-mix(in srgb, var(--green) 7%, var(--surface2)); }
+tr.perf-loss:hover td { background: color-mix(in srgb, var(--red) 7%, var(--surface2)); }
+
+/* ── Profit bar in perf table ── */
+.profit-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.profit-bar {
+  height: 4px;
+  border-radius: 2px;
+  min-width: 2px;
+  max-width: 60px;
+}
+
+/* ── Return rate badge ── */
+.rate-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0;
+}
+.rate-badge.pos { background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); }
+.rate-badge.neg { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); }
+
+/* ── Status badges ── */
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.badge.confirmed { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+.badge.held { background: color-mix(in srgb, var(--amber) 16%, transparent); color: var(--amber); }
+.badge.rescheduled { background: color-mix(in srgb, var(--blue) 14%, transparent); color: var(--blue); }
+.badge.cancelled { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--red); }
+
+/* ── Inventory filters ── */
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.filters input,
+.filters select {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .12s;
+}
+.filters input:focus,
+.filters select:focus { border-color: var(--border2); }
+.filters input { flex: 1; min-width: 160px; }
+
+/* ── Inventory footer total ── */
+.inv-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 20px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--surface);
+}
+.inv-footer strong { color: var(--text); font-weight: 600; }
+
+/* ── Empty + note states ── */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.note {
+  font-size: 11px;
+  color: var(--faint);
+  padding: 10px 18px 14px;
+}
+
+/* ── Error banner ── */
+.err-banner {
+  display: none;
+  background: color-mix(in srgb, var(--red) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+/* ── Skeleton loader ── */
+.sk {
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 37%, var(--surface2) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.3s infinite;
+  border-radius: 5px;
+}
+@keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+.sk-line { height: 12px; margin: 6px 0; }
+
+/* ── Transfer ── */
+.tf-pass-wrap {
+  max-width: 360px;
+  padding: 0 18px 14px;
+}
+.tf-pass-wrap input {
+  width: 100%;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.tf-pass-wrap input:focus { border-color: var(--border2); }
+
+.tf-toolbar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+}
+.tf-search {
+  flex: 1;
+  min-width: 160px;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.tf-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.tf-chip {
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .1s, color .1s, border-color .1s;
+}
+.tf-chip.active {
+  background: var(--lime-dim);
+  border-color: var(--lime);
+  color: var(--lime);
+}
+[data-theme="light"] .tf-chip.active { color: var(--lime); }
+
+.tf-day-hdr {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--faint);
+  padding: 14px 18px 6px;
+}
+
+.tcard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.tcard:last-child { border-bottom: none; }
+.tcard:hover { background: var(--surface2); }
+.tcard.sel { background: var(--lime-dim); }
+
+.tbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--faint);
+  flex-shrink: 0;
+  position: relative;
+  transition: border-color .1s, background .1s;
+}
+.tcard.sel .tbox {
+  border-color: var(--lime);
+  background: var(--lime);
+}
+.tcard.sel .tbox::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--bg);
+  font-weight: 800;
+}
+
+.tinfo { flex: 1; min-width: 0; }
+.tname { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tmeta { color: var(--muted); font-size: 11.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.tright { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.acct-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.ttype { font-size: 11px; color: var(--faint); }
+
+.tf-action-bar {
+  position: sticky;
+  bottom: 12px;
+  margin: 14px 18px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 -4px 20px rgba(0,0,0,.4);
+}
+.ab-sel { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.ab-sel b { color: var(--text); }
+.ab-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.ab-phone {
+  flex: 1;
+  min-width: 180px;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.btn-primary {
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity .1s;
+}
+.btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+.btn-primary:hover:not(:disabled) { opacity: .88; }
+
+/* ── Mobile table ── */
+@media (max-width: 680px) {
+  thead { display: none; }
+  table, tbody, tr, td { display: block; width: 100%; }
+  tr { border-bottom: 1px solid var(--border); padding: 10px 0; }
+  td { border: none; padding: 3px 0; display: flex; justify-content: space-between; gap: 10px; text-align: right; }
+  td::before { content: attr(data-label); color: var(--muted); font-size: 11px; font-weight: 500; text-align: left; flex-shrink: 0; }
+}
+
+/* ── Placeholder ── */
+.placeholder {
+  border: 1px dashed var(--border2);
+  border-radius: 10px;
+  padding: 20px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
 </style>
 </head>
 <body>
 
-<div class="nav">
-  <div class="brand"><span class="logo"></span> Ticket Portfolio</div>
-  <div class="navright">
-    <span id="status">Loading…</span>
-    <button id="themeBtn" title="Toggle theme">☾</button>
-    <button id="reloadBtn">↻ Reload</button>
+<!-- ── Nav ── -->
+<nav class="nav">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <rect x="1" y="1" width="5" height="5" rx="1.2" fill="#080a0f"/>
+        <rect x="8" y="1" width="5" height="5" rx="1.2" fill="#080a0f"/>
+        <rect x="1" y="8" width="5" height="5" rx="1.2" fill="#080a0f"/>
+        <rect x="8" y="8" width="5" height="5" rx="1.2" fill="#080a0f"/>
+      </svg>
+    </div>
+    Portfolio
   </div>
-</div>
+  <div class="nav-right">
+    <span id="status" class="updated-pill">Loading…</span>
+    <button class="icon-btn" id="themeBtn" title="Toggle theme">☾</button>
+    <button class="icon-btn" id="reloadBtn" title="Reload data">↻</button>
+  </div>
+</nav>
 
-<div class="tabs">
+<!-- ── Tabs ── -->
+<div class="tab-bar">
   <div class="tab active" data-pane="overview">Overview</div>
   <div class="tab" data-pane="performance">Performance</div>
   <div class="tab" data-pane="inventory">Inventory</div>
   <div class="tab" data-pane="transfer">Transfer</div>
 </div>
 
+<!-- ── Content ── -->
 <div class="wrap">
   <div id="errBanner" class="err-banner"></div>
 
-  <!-- ================= OVERVIEW ================= -->
+  <!-- ═══ OVERVIEW ═══ -->
   <div class="pane active" data-pane="overview">
-    <div class="kpis" id="perfKpis"></div>
-    <div class="kpis sub" id="kpis"></div>
+
+    <!-- Primary KPIs -->
+    <div class="kpi-strip" id="perfKpis"></div>
+
+    <!-- Sub KPIs -->
+    <div class="sub-kpis" id="kpis"></div>
+
+    <!-- Charts row -->
     <div class="grid2">
       <div class="card">
-        <h2>Profit vs Net Invested by Month</h2>
-        <div class="chart-box" id="monthlyWrap"><canvas id="monthlyChart"></canvas></div>
-        <div class="cap">Green = profit · muted = net invested · % under each month = monthly return (profit ÷ net invested)</div>
+        <div class="card-head">
+          <span class="card-title">Monthly P&L</span>
+          <span class="card-sub">profit vs invested</span>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap" id="monthlyWrap"><canvas id="monthlyChart"></canvas></div>
+        </div>
+        <div class="chart-legend">
+          <div style="display:flex;align-items:center;gap:5px;"><div class="chart-legend-dot" style="background:var(--green)"></div>Profit</div>
+          <div style="display:flex;align-items:center;gap:5px;"><div class="chart-legend-dot" style="background:var(--faint)"></div>Net invested</div>
+          <span>% = monthly return</span>
+        </div>
       </div>
       <div class="card">
-        <h2>Spend by Account <span style="color:var(--faint); font-weight:400;">(held)</span></h2>
-        <div id="spendByAccount"></div>
+        <div class="card-head">
+          <span class="card-title">Spend by account</span>
+          <span class="card-sub">currently held</span>
+        </div>
+        <div class="card-body" id="spendByAccount"></div>
       </div>
     </div>
   </div>
 
-  <!-- ================= PERFORMANCE ================= -->
+  <!-- ═══ PERFORMANCE ═══ -->
   <div class="pane" data-pane="performance">
     <div class="card">
-      <h2>Event Performance</h2>
-      <table>
-        <thead>
-          <tr><th>Event</th><th>Date</th><th class="r">Tickets</th><th class="r">Invested</th><th class="r">Sold</th><th class="r">Profit</th></tr>
-        </thead>
-        <tbody id="perfTableBody"></tbody>
-      </table>
-      <div id="perfTableEmpty" class="empty" style="display:none;">No performance rows yet.</div>
-      <div id="perfStatus" class="cap"></div>
+      <div class="card-head" style="padding-bottom:14px;">
+        <span class="card-title">Event performance</span>
+        <span id="perfStatus" class="card-sub"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Date</th>
+              <th class="r">Tickets</th>
+              <th class="r">Invested</th>
+              <th class="r">Sold</th>
+              <th class="r">Profit</th>
+              <th class="r">Return</th>
+            </tr>
+          </thead>
+          <tbody id="perfTableBody"></tbody>
+        </table>
+      </div>
+      <div id="perfTableEmpty" class="empty-state" style="display:none;">No performance data yet.</div>
     </div>
   </div>
 
-  <!-- ================= INVENTORY ================= -->
+  <!-- ═══ INVENTORY ═══ -->
   <div class="pane" data-pane="inventory">
     <div class="card">
-      <h2>Ticket Inventory</h2>
+      <div class="card-head" style="padding-bottom: 0;">
+        <span class="card-title">Ticket inventory</span>
+      </div>
       <div class="filters">
         <input id="search" type="text" placeholder="Search event or venue…">
         <select id="accountFilter"><option value="">All accounts</option></select>
         <select id="timeFilter">
-          <option value="">Upcoming + Past</option>
+          <option value="">Upcoming + past</option>
           <option value="upcoming" selected>Upcoming only</option>
           <option value="past">Past only</option>
         </select>
@@ -221,57 +798,63 @@
           <option value="price-asc">Price ↑</option>
         </select>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Event</th><th>Date</th><th>Venue</th><th>Account</th>
-            <th>Type</th><th class="r">Qty</th><th class="r">Total</th><th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-      <div id="emptyMsg" class="empty" style="display:none;">No tickets match these filters.</div>
-      <div class="cap">Past-event totals reflect the scraper's recent history (capped per account), not full all-time archive.</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Event</th><th>Date</th><th>Venue</th><th>Account</th>
+              <th>Type</th><th class="r">Qty</th><th class="r">Total</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div id="emptyMsg" class="empty-state" style="display:none;">No tickets match these filters.</div>
+      <div id="invFooter" class="inv-footer" style="display:none;">
+        <span>Showing <strong id="invCount">0</strong> rows</span>
+        <span>Total: <strong id="invTotal">$0.00</strong></span>
+      </div>
+      <div class="note">Past-event totals reflect recent scraper history (capped per account), not a full all-time archive.</div>
     </div>
   </div>
 
-  <!-- ================= TRANSFER ================= -->
+  <!-- ═══ TRANSFER ═══ -->
   <div class="pane" data-pane="transfer">
     <div class="card">
-      <h2>Transfer Tickets</h2>
-      <div class="cap" style="margin-bottom:12px;">Enter your passphrase to load tickets. Select one or more, add your friend's phone, and send. You'll confirm before anything goes out.</div>
-
-      <div style="max-width:340px; margin-bottom:6px;">
-        <input id="tfPass" type="password" placeholder="Passphrase — auto-loads on Enter" autocomplete="off"
-               style="width:100%; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:9px; padding:9px 11px; font-size:13px;">
+      <div class="card-head" style="padding-bottom:12px;">
+        <span class="card-title">Transfer tickets</span>
+        <span class="card-sub">enter passphrase to load</span>
+      </div>
+      <div class="tf-pass-wrap">
+        <input id="tfPass" type="password" placeholder="Passphrase" autocomplete="off">
       </div>
 
-      <div id="tfToolbar" class="tf-toolbar" style="display:none;">
+      <div id="tfToolbar" class="tf-toolbar">
         <input id="tfSearch" class="tf-search" placeholder="Search event, type, or account…">
         <div id="tfChips" class="tf-chips"></div>
       </div>
 
-      <div id="tfList" class="tf-list"></div>
-      <div id="tfEmpty" class="empty" style="display:none;"></div>
+      <div id="tfList"></div>
+      <div id="tfEmpty" class="empty-state" style="display:none;"></div>
 
-      <div id="tfActionBar" class="tf-actionbar" style="display:none;">
+      <div id="tfActionBar" class="tf-action-bar" style="display:none;">
         <div id="tfSelSummary" class="ab-sel">No tickets selected.</div>
         <div class="ab-row">
           <input id="tfPhone" class="ab-phone" type="tel" placeholder="Friend's phone, e.g. +19175551234">
-          <button id="tfSend" class="ab-send" disabled>Transfer</button>
+          <button id="tfSend" class="btn-primary" disabled>Transfer</button>
         </div>
-        <div id="tfStatus" class="cap" style="margin-top:8px;"></div>
+        <div id="tfStatus" class="note" style="margin:8px 0 0;padding:0;"></div>
       </div>
     </div>
   </div>
 
-  <div class="cap" style="text-align:center; margin-top:6px;">
-    Data source: "Dice Ticket Inventory" Google Sheet — refreshed daily by the cloud scraper.
+  <div class="note" style="text-align:center; margin-top:8px;">
+    Data source: Dice Ticket Inventory — refreshed daily
   </div>
 </div>
 
 <script>
-// ===================== DATA WIRING (unchanged) =====================
+// ===================== DATA WIRING (identical to original) =====================
 const CSV_URLS = [
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vT1HDLy3DkAbFJD_P_a-kguDC44utVL_nQv1Clb0M-6ycr71C7MfImETQTN0qL4_PnCMoHRWE-8cm4m/pub?gid=217795818&single=true&output=csv",
   "https://docs.google.com/spreadsheets/d/1RDZeMVj0paQ_qUVmTZoUA6INS9Squg-OegW4C5fRIDc/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent("All Inventory"),
@@ -319,7 +902,6 @@ function parseMoney(str){
   return isNaN(n) ? null : n;
 }
 
-// ---- Formatting helpers ----
 function fmtMoney(n){
   if(n == null || isNaN(n)) return "$0.00";
   return (n < 0 ? "−$" : "$") + Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -353,14 +935,12 @@ async function fetchPerformance(){
   if(!res.ok) throw new Error("HTTP " + res.status);
   const csv = await res.text();
   const rows = Papa.parse(csv, {header:false, skipEmptyLines:false}).data;
-
   const events = [];
   for(let i = 1; i < rows.length; i++){
     const r = rows[i];
     if(!r) continue;
     const event = (r[0] || "").trim();
     if(!event) continue;
-
     const numTickets      = parseInt(r[3], 10) || 0;
     const totalInvestment = parseMoney(r[4]) || 0;
     const currentMktPri   = parseMoney(r[5]);
@@ -386,7 +966,6 @@ async function fetchMetrics(){
   if(!res.ok) throw new Error("HTTP " + res.status);
   const csv = await res.text();
   const rows = Papa.parse(csv, {header:false, skipEmptyLines:false}).data;
-
   const panelMap = {};
   rows.forEach(r => {
     if(!r) return;
@@ -395,7 +974,6 @@ async function fetchMetrics(){
   });
   const g = lbl => panelMap[lbl.toLowerCase()];
   const intOf = s => parseInt(String(s ?? "").replace(/[^0-9.\-]/g,""), 10) || 0;
-
   const panel = {
     ticketsHolding:  intOf(g("Total Tickets Holding")),
     ticketsSold:     intOf(g("Total Tickets Sold")),
@@ -405,7 +983,6 @@ async function fetchMetrics(){
     totalProfit:     parseMoney(g("Total Profit")) || 0,
     irr:             g("IRR"),
   };
-
   const monthly = [];
   rows.forEach(r => {
     if(!r) return;
@@ -427,26 +1004,28 @@ function cssVar(name){ return getComputedStyle(document.documentElement).getProp
 
 function renderPerformance(){
   const p = METRICS.panel || {};
-
-  // Holding Value comes straight from the Metrics tab's "Current Holdings" so the
-  // site and the spreadsheet always agree. (It used to be recomputed here from the
-  // Performance rows, which drifted from the sheet's authoritative number.)
   const profit = p.totalProfit || 0;
+
+  // Primary KPI strip
   const cards = [
-    {val: (profit>=0?"+":"") + fmtMoney(profit),  lbl:"Total Profit (Realized)", primary:true, cls: profit>=0?"pos":"neg"},
-    {val: fmtMoney(p.totalInvested || 0),         lbl:"Invested Capital"},
-    {val: fmtMoney(p.currentHoldings || 0),       lbl:"Holding Value"},
-    {val: fmtMoney(p.personalCost || 0),          lbl:"Personal Cost"},
+    {val: (profit>=0?"+":"") + fmtMoney(profit), lbl:"Total profit (realized)", hero:true, cls: profit>=0?"pos":"neg", accent:true},
+    {val: fmtMoney(p.totalInvested || 0),         lbl:"Invested capital"},
+    {val: fmtMoney(p.currentHoldings || 0),       lbl:"Holding value"},
+    {val: fmtMoney(p.personalCost || 0),          lbl:"Personal cost"},
     {val: formatIRR(p.irr),                       lbl:"IRR"},
     {val: p.ticketsHolding ?? 0,                  lbl:"Holding"},
     {val: p.ticketsSold ?? 0,                     lbl:"Sold"},
   ];
   document.getElementById("perfKpis").innerHTML = cards.map(k =>
-    `<div class="kpi ${k.primary?"primary":""}"><div class="lbl">${k.lbl}</div><div class="val num ${k.cls||""}">${k.val}</div></div>`
+    `<div class="kpi${k.hero?" hero":""}">
+      ${k.accent ? '<div class="kpi-accent"></div>' : ''}
+      <div class="kpi-label">${k.lbl}</div>
+      <div class="kpi-val num${k.cls?" "+k.cls:""}">${k.val}</div>
+    </div>`
   ).join("");
 
   document.getElementById("perfStatus").textContent =
-    "Source: Metrics tab · Personal-use tickets excluded from invested capital and holdings · IRR = Total Profit ÷ Total Invested";
+    "Personal tickets excluded · IRR = profit ÷ total returned";
 
   renderMonthlyChart();
   renderPerfTable();
@@ -461,18 +1040,37 @@ function renderPerfTable(){
   });
   if(!evs.length){ body.innerHTML=""; emptyEl.style.display="block"; return; }
   emptyEl.style.display="none";
+
+  // Find max absolute profit for bar scaling
+  const maxProfit = Math.max(1, ...evs.filter(e=>e.totalSold>0).map(e=>Math.abs(e.profit)));
+
   body.innerHTML = evs.map(e => {
     const sold = e.totalSold > 0;
+    const returnRate = (sold && e.totalInvestment > 0) ? (e.profit / e.totalInvestment) : null;
+    const rateStr = returnRate !== null
+      ? `<span class="rate-badge ${returnRate>=0?"pos":"neg"}">${(returnRate>=0?"+":"")+(returnRate*100).toFixed(1)}%</span>`
+      : `<span style="color:var(--faint);font-size:11px;">held</span>`;
+
     const profCell = sold
-      ? `<span class="num ${e.profit>=0?"pos":"neg"}">${(e.profit>=0?"+":"")+fmtMoney(e.profit)}</span>`
-      : `<span class="num" style="color:var(--faint)">— held</span>`;
-    return `<tr>
-      <td data-label="Event">${e.event}</td>
-      <td data-label="Date">${fmtDate(e.eventDate)}</td>
+      ? (() => {
+          const barW = Math.round((Math.abs(e.profit)/maxProfit)*60);
+          const barCol = e.profit>=0 ? "var(--green)" : "var(--red)";
+          return `<div class="profit-bar-wrap">
+            <span class="num ${e.profit>=0?"pos":"neg"}">${(e.profit>=0?"+":"")+fmtMoney(e.profit)}</span>
+            <div class="profit-bar" style="width:${barW}px;background:${barCol}"></div>
+          </div>`;
+        })()
+      : `<span class="num" style="color:var(--faint)">—</span>`;
+
+    const rowCls = sold ? (e.profit >= 0 ? "perf-sold" : "perf-loss") : "";
+    return `<tr class="${rowCls}">
+      <td data-label="Event" style="font-weight:500;">${e.event}</td>
+      <td data-label="Date" style="color:var(--muted);white-space:nowrap;">${fmtDate(e.eventDate)}</td>
       <td class="r num" data-label="Tickets">${e.numTickets}</td>
       <td class="r num" data-label="Invested">${fmtMoney(e.totalInvestment)}</td>
       <td class="r num" data-label="Sold">${e.totalSold}</td>
       <td class="r" data-label="Profit">${profCell}</td>
+      <td class="r" data-label="Return">${rateStr}</td>
     </tr>`;
   }).join("");
 }
@@ -497,38 +1095,43 @@ function renderMonthlyChart(){
   }
   const inv    = data.map(m => m.netInvestment || 0);
   const profit = data.map(m => m.profit  || 0);
-  // Monthly % return = profit / net invested. Rendered as a 2nd line under each
-  // month label (Chart.js draws array labels on separate lines).
   const monthlyReturn = data.map((m,i) => (inv[i] ? (profit[i] / inv[i]) * 100 : null));
   const retStr = r => (r === null ? "—" : (r >= 0 ? "+" : "") + r.toFixed(1) + "%");
   const labels = data.map((m,i) => [String(m.month).replace(/\s+\d{4}$/,""), retStr(monthlyReturn[i])]);
 
-  const green = cssVar("--green") || "#3ecf8e";
-  const red   = cssVar("--red")   || "#e8607a";
-  const muted = cssVar("--faint") || "#5b6678";
-  const grid  = cssVar("--border")|| "#232e42";
-  const txt   = cssVar("--muted") || "#8a96ab";
+  const green = cssVar("--green") || "#34d399";
+  const red   = cssVar("--red")   || "#f43f5e";
+  const faint = cssVar("--faint") || "#3e4352";
+  const grid  = cssVar("--border")|| "#1e2028";
+  const txt   = cssVar("--muted") || "#7c8494";
 
   if(monthlyChartObj){ monthlyChartObj.destroy(); }
   monthlyChartObj = new Chart(document.getElementById("monthlyChart"), {
     type:"bar",
     data:{ labels, datasets:[
-      {label:"Net Invested", data:inv, backgroundColor:muted, borderRadius:4, maxBarThickness:18},
-      {label:"Profit",       data:profit, backgroundColor:profit.map(v => v>=0?green:red), borderRadius:4, maxBarThickness:18},
+      {label:"Net invested", data:inv,    backgroundColor:faint,                                      borderRadius:3, maxBarThickness:16},
+      {label:"Profit",       data:profit, backgroundColor:profit.map(v => v>=0?green:red), borderRadius:3, maxBarThickness:16},
     ]},
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{
-        legend:{labels:{color:txt, boxWidth:10, font:{size:11}}},
-        tooltip:{callbacks:{
-          label:c => c.dataset.label+": "+fmtMoney(c.parsed.y),
-          afterBody:items => { const r = monthlyReturn[items[0].dataIndex];
-                               return r === null ? "" : "Return: " + retStr(r); }
-        }}
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"#0f1117",
+          borderColor:"#2a2d38",
+          borderWidth:1,
+          titleColor:"#f0f2f7",
+          bodyColor:"#7c8494",
+          callbacks:{
+            label:c => c.dataset.label+": "+fmtMoney(c.parsed.y),
+            afterBody:items => { const r = monthlyReturn[items[0].dataIndex];
+                                 return r === null ? "" : "Return: " + retStr(r); }
+          }
+        }
       },
       scales:{
-        x:{grid:{display:false}, ticks:{color:txt, font:{size:11}}},
-        y:{grid:{color:grid}, ticks:{color:txt, font:{size:11}, callback:v => "$"+v}}
+        x:{grid:{display:false}, ticks:{color:txt, font:{size:10, family:"Inter"}}},
+        y:{grid:{color:grid,lineWidth:1}, border:{dash:[3,3]}, ticks:{color:txt, font:{size:10, family:"Inter"}, callback:v => "$"+v.toLocaleString()}}
       }
     }
   });
@@ -536,17 +1139,16 @@ function renderMonthlyChart(){
 
 function showSkeletons(){
   document.getElementById("perfKpis").innerHTML =
-    Array.from({length:6}).map(()=>'<div class="kpi"><div class="sk sk-line" style="width:60%"></div><div class="sk sk-line" style="width:80%; height:18px"></div></div>').join("");
+    Array.from({length:6}).map(()=>`<div class="kpi"><div class="sk sk-line" style="width:55%;margin-bottom:8px"></div><div class="sk sk-line" style="width:75%;height:20px"></div></div>`).join("");
   document.getElementById("kpis").innerHTML =
-    Array.from({length:4}).map(()=>'<div class="kpi"><div class="sk sk-line" style="width:60%"></div><div class="sk sk-line" style="width:50%"></div></div>').join("");
+    Array.from({length:4}).map(()=>`<div class="sub-kpi"><div class="sk sk-line" style="width:55%"></div><div class="sk sk-line" style="width:65%;height:16px"></div></div>`).join("");
   document.getElementById("tableBody").innerHTML =
-    Array.from({length:5}).map(()=>'<tr><td colspan="8"><div class="sk sk-line" style="width:100%; height:16px"></div></td></tr>').join("");
+    Array.from({length:6}).map(()=>`<tr><td colspan="8"><div class="sk sk-line" style="width:100%;height:14px"></div></td></tr>`).join("");
 }
 
 function showError(msg){
   const b = document.getElementById("errBanner");
-  b.textContent = msg;
-  b.style.display = "block";
+  b.textContent = msg; b.style.display = "block";
 }
 function clearError(){ document.getElementById("errBanner").style.display = "none"; }
 
@@ -561,15 +1163,15 @@ async function load(){
       const dateObj = parseEventDate(r["Date"]);
       return {
         account: (r["Account"] || "").trim(),
-        event: (r["Event Name"] || "").trim(),
+        event:   (r["Event Name"] || "").trim(),
         dateStr: (r["Date"] || "").trim(),
         dateObj,
-        venue: (r["Venue"] || "").trim(),
-        type: (r["Ticket Type"] || "").trim(),
-        qty: parseInt(r["Qty"], 10) || 0,
+        venue:   (r["Venue"] || "").trim(),
+        type:    (r["Ticket Type"] || "").trim(),
+        qty:     parseInt(r["Qty"], 10) || 0,
         priceEach: parseMoney(r["Price Each"]),
-        total: parseMoney(r["Total"]),
-        status: (r["Status"] || "").trim().toLowerCase(),
+        total:   parseMoney(r["Total"]),
+        status:  (r["Status"] || "").trim().toLowerCase(),
         lastUpdated: (r["Last Updated"] || "").trim(),
         isFuture: dateObj ? dateObj.getTime() > Date.now() : true,
       };
@@ -582,7 +1184,7 @@ async function load(){
   }catch(err){
     const isFileProtocol = location.protocol === "file:";
     const msg = isFileProtocol
-      ? "Can't load data while opened as a local file. Host this page (e.g. GitHub Pages) and open it via https:// instead."
+      ? "Can't load data from a local file. Open via GitHub Pages (https://) instead."
       : "Failed to load inventory: " + err.message;
     document.getElementById("status").textContent = "Load error";
     showError(msg);
@@ -608,7 +1210,9 @@ function populateFilterOptions(){
   }
   if(statSel.options.length <= 1){
     [...new Set(ROWS.map(r=>r.status))].filter(Boolean).sort().forEach(s=>{
-      const o = document.createElement("option"); o.value=s; o.textContent = s[0].toUpperCase()+s.slice(1); statSel.appendChild(o);
+      const o = document.createElement("option"); o.value=s;
+      o.textContent = s[0].toUpperCase()+s.slice(1);
+      statSel.appendChild(o);
     });
   }
 }
@@ -620,15 +1224,14 @@ function computeKPIs(){
   const historicalQty = ROWS.reduce((s,r)=>s+r.qty,0);
   const upcomingEvents = new Set(ROWS.filter(r=>r.isFuture && r.status!=="cancelled").map(eventKey)).size;
   const pastEvents = new Set(ROWS.filter(r=>!r.isFuture).map(eventKey)).size;
-
   const kpis = [
-    {val: accounts.size, lbl: "Accounts Connected"},
-    {val: historicalQty, lbl: "Total Historical Purchases"},
-    {val: upcomingEvents, lbl: "Upcoming Events"},
-    {val: pastEvents, lbl: "Past Events (recent)"},
+    {val: accounts.size,    lbl: "Accounts"},
+    {val: historicalQty,    lbl: "Tickets purchased"},
+    {val: upcomingEvents,   lbl: "Upcoming events"},
+    {val: pastEvents,       lbl: "Past events"},
   ];
   document.getElementById("kpis").innerHTML = kpis.map(k =>
-    `<div class="kpi"><div class="lbl">${k.lbl}</div><div class="val num">${k.val}</div></div>`
+    `<div class="sub-kpi"><div class="kpi-label">${k.lbl}</div><div class="kpi-val num">${k.val}</div></div>`
   ).join("");
 }
 
@@ -640,21 +1243,21 @@ function renderSpendByAccount(){
   const entries = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
   const el = document.getElementById("spendByAccount");
   if(!entries.length){ el.innerHTML = '<div class="placeholder">No currently held tickets.</div>'; return; }
-  el.innerHTML = entries.map(([name,total]) => `
-    <div class="bar-row">
-      <div class="name">${name}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${(total/max*100).toFixed(1)}%"></div></div>
-      <div class="bar-val num">${fmtMoney(total)}</div>
-    </div>`).join("");
+  el.innerHTML = `<div class="spend-list">${entries.map(([name,total]) => `
+    <div class="spend-row">
+      <div class="spend-name">${name}</div>
+      <div class="spend-track"><div class="spend-fill" style="width:${(total/max*100).toFixed(1)}%"></div></div>
+      <div class="spend-val num">${fmtMoney(total)}</div>
+    </div>`).join("")}</div>`;
 }
 
 function currentFilters(){
   return {
-    search: document.getElementById("search").value.trim().toLowerCase(),
+    search:  document.getElementById("search").value.trim().toLowerCase(),
     account: document.getElementById("accountFilter").value,
-    time: document.getElementById("timeFilter").value,
-    status: document.getElementById("statusFilter").value,
-    sort: document.getElementById("sortBy").value,
+    time:    document.getElementById("timeFilter").value,
+    status:  document.getElementById("statusFilter").value,
+    sort:    document.getElementById("sortBy").value,
   };
 }
 
@@ -670,26 +1273,41 @@ function renderTable(){
   });
 
   rows.sort((a,b) => {
-    if(f.sort === "date-asc") return (a.dateObj?.getTime()||0) - (b.dateObj?.getTime()||0);
-    if(f.sort === "date-desc") return (b.dateObj?.getTime()||0) - (a.dateObj?.getTime()||0);
+    if(f.sort === "date-asc")   return (a.dateObj?.getTime()||0) - (b.dateObj?.getTime()||0);
+    if(f.sort === "date-desc")  return (b.dateObj?.getTime()||0) - (a.dateObj?.getTime()||0);
     if(f.sort === "price-desc") return (b.total ?? -1) - (a.total ?? -1);
-    if(f.sort === "price-asc") return (a.total ?? 1e15) - (b.total ?? 1e15);
+    if(f.sort === "price-asc")  return (a.total ?? 1e15) - (b.total ?? 1e15);
     return 0;
   });
 
-  const body = document.getElementById("tableBody");
+  const body    = document.getElementById("tableBody");
   const emptyMsg = document.getElementById("emptyMsg");
-  if(!rows.length){ body.innerHTML = ""; emptyMsg.style.display = "block"; return; }
+  const footer  = document.getElementById("invFooter");
+
+  if(!rows.length){
+    body.innerHTML = "";
+    emptyMsg.style.display = "block";
+    footer.style.display = "none";
+    return;
+  }
+
   emptyMsg.style.display = "none";
+  footer.style.display = "flex";
+
+  // Compute footer totals
+  const totalInv = rows.reduce((s,r) => s + (r.total ?? 0), 0);
+  document.getElementById("invCount").textContent = rows.length;
+  document.getElementById("invTotal").textContent = fmtMoney(totalInv);
+
   body.innerHTML = rows.map(r => `
     <tr>
-      <td data-label="Event">${r.event}</td>
-      <td data-label="Date">${fmtDate(r.dateStr)}</td>
-      <td data-label="Venue">${r.venue}</td>
-      <td data-label="Account">${r.account}</td>
-      <td data-label="Type">${r.type}</td>
+      <td data-label="Event" style="font-weight:500;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.event}</td>
+      <td data-label="Date" style="color:var(--muted);white-space:nowrap;">${fmtDate(r.dateStr)}</td>
+      <td data-label="Venue" style="color:var(--muted);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.venue}</td>
+      <td data-label="Account" style="color:var(--muted);">${r.account}</td>
+      <td data-label="Type" style="color:var(--muted);">${r.type}</td>
       <td class="r num" data-label="Qty">${r.qty}</td>
-      <td class="r num" data-label="Total">${r.total !== null ? fmtMoney(r.total) : "N/A"}</td>
+      <td class="r num" data-label="Total">${r.total !== null ? fmtMoney(r.total) : '<span style="color:var(--faint)">N/A</span>'}</td>
       <td data-label="Status"><span class="badge ${r.status}">${r.status}</span></td>
     </tr>`).join("");
 }
@@ -712,12 +1330,11 @@ document.querySelectorAll(".tab").forEach(t => {
     const p = t.getAttribute("data-pane");
     document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x===t));
     document.querySelectorAll(".pane").forEach(x => x.classList.toggle("active", x.getAttribute("data-pane")===p));
-    // Chart needs a resize nudge when its pane becomes visible.
     if(p === "overview" && monthlyChartObj) monthlyChartObj.resize();
   });
 });
 
-// ---- Theme toggle (remembers choice) ----
+// ---- Theme toggle ----
 (function(){
   const btn = document.getElementById("themeBtn");
   let saved = "dark";
@@ -738,7 +1355,7 @@ load();
 </script>
 
 <script>
-// ===================== TRANSFER PANEL LOGIC =====================
+// ===================== TRANSFER PANEL LOGIC (identical to original) =====================
 (function(){
   const TRANSFER_WORKER_URL = "https://dice-transfer.nicrlombardi.workers.dev";
 
@@ -754,9 +1371,9 @@ load();
   const sendBt  = document.getElementById("tfSend");
   const status  = document.getElementById("tfStatus");
 
-  let tickets   = [];            // all loaded tickets
-  let selected  = new Set();     // selected ticket keys
-  let acctFilter = "";           // "" = all accounts
+  let tickets   = [];
+  let selected  = new Set();
+  let acctFilter = "";
   let passphrase = "";
   let loading = false, loadedForPass = null, lastFailedPass = null;
 
@@ -769,7 +1386,6 @@ load();
                        : "var(--faint)";
   }
 
-  // ---- date helpers ----
   function parseTfDate(s){
     if(!s) return null;
     const d = new Date(s);
@@ -786,7 +1402,6 @@ load();
     return [dt, tm].filter(Boolean).join(" · ");
   }
 
-  // ---- auto-load ----
   async function loadTickets(v){
     if(loading) return;
     loading = true; setStatus("Loading tickets…");
@@ -801,16 +1416,18 @@ load();
       buildChips(); renderList(); updateBar();
       setStatus(tickets.length + " ticket(s) loaded across your accounts.", "ok");
     }catch(e){
-      setStatus("Error: " + e.message + " (check the Worker URL / your connection)", "err");
+      setStatus("Error: " + e.message, "err");
     }finally{ loading = false; }
   }
+
   function attemptLoad(force){
     const v = pass.value.trim();
     if(!v || loading) return;
-    if(v === loadedForPass) return;          // already loaded this passphrase
-    if(!force && v === lastFailedPass) return; // only retry a known-bad pass on Enter
+    if(v === loadedForPass) return;
+    if(!force && v === lastFailedPass) return;
     loadTickets(v);
   }
+
   let deb;
   pass.addEventListener("input", () => {
     clearTimeout(deb);
@@ -820,7 +1437,6 @@ load();
   pass.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); attemptLoad(true); } });
   pass.addEventListener("blur", () => attemptLoad(false));
 
-  // ---- account filter chips ----
   function buildChips(){
     const accts = [...new Set(tickets.map(t => t.account))].sort();
     let html = `<span class="tf-chip ${acctFilter===""?"active":""}" data-acct="">All accounts</span>`;
@@ -833,7 +1449,6 @@ load();
     toolbar.style.display = tickets.length ? "flex" : "none";
   }
 
-  // ---- list ----
   function visibleTickets(){
     const q = search.value.trim().toLowerCase();
     return tickets.filter(t => {
@@ -845,6 +1460,7 @@ load();
       return true;
     });
   }
+
   function renderList(){
     const vis = visibleTickets().slice().sort((a,b) => {
       const da = parseTfDate(a.date), db = parseTfDate(b.date);
@@ -866,17 +1482,19 @@ load();
     listEl.innerHTML = groups.map(g => {
       const cards = g.items.map(t => {
         const k = keyOf(t);
-        const cls = selected.has(k) ? "sel" : "";
-        return `<div class="tcard ${cls}" data-key="${k}">
+        return `<div class="tcard ${selected.has(k)?"sel":""}" data-key="${k}">
           <div class="tbox"></div>
           <div class="tinfo">
             <div class="tname">${t.event_name || "Event"}</div>
             <div class="tmeta">${metaLine(t)}${t.ticket_id ? ` · #${t.ticket_id}` : ""}</div>
           </div>
-          <div class="tright"><span class="acct">${t.account}</span>${t.type ? `<span class="ttype">${t.type}</span>` : ""}</div>
+          <div class="tright">
+            <span class="acct-tag">${t.account}</span>
+            ${t.type ? `<span class="ttype">${t.type}</span>` : ""}
+          </div>
         </div>`;
       }).join("");
-      return `<div class="daygroup"><div class="tf-dayhdr">${g.lbl}</div>${cards}</div>`;
+      return `<div><div class="tf-day-hdr">${g.lbl}</div>${cards}</div>`;
     }).join("");
     listEl.querySelectorAll(".tcard").forEach(c => c.addEventListener("click", () => {
       const k = c.getAttribute("data-key");
@@ -886,8 +1504,8 @@ load();
     }));
   }
 
-  // ---- action bar ----
   function selectedTickets(){ return tickets.filter(t => selected.has(keyOf(t))); }
+
   function updateBar(){
     bar.style.display = tickets.length ? "block" : "none";
     const sel = selectedTickets();
@@ -899,22 +1517,18 @@ load();
     sendBt.textContent = sel.length > 1 ? `Transfer ${sel.length} tickets` : "Transfer ticket";
   }
 
-  // ---- send (grouped by account + event; one call per group) ----
   async function sendTransfer(){
     const sel = selectedTickets();
     if(!sel.length){ setStatus("Select at least one ticket.", "err"); return; }
     const ph = phone.value.trim();
-    if(!/^\+\d{7,15}$/.test(ph)){ setStatus("Phone must be full international, e.g. +19175551234", "err"); return; }
-
-    const lines = sel.map(t => `• ${t.event_name}${t.type ? " — " + t.type : ""} (${t.account}, #${t.ticket_id})`).join("\n");
+    if(!/^\+\d{7,15}$/.test(ph)){ setStatus("Phone must be full international format, e.g. +19175551234", "err"); return; }
+    const lines = sel.map(t => `• ${t.event_name}${t.type?" — "+t.type:""} (${t.account}, #${t.ticket_id})`).join("\n");
     if(!window.confirm(`Transfer ${sel.length} ticket(s) to ${ph}?\n\n${lines}`)){ setStatus("Cancelled.", ""); return; }
-
     const groups = {};
     sel.forEach(t => {
       const gk = t.account + "||" + t.event_id;
       (groups[gk] = groups[gk] || { account: t.account, event_id: t.event_id, ids: [] }).ids.push(t.ticket_id);
     });
-
     setStatus(`Sending ${sel.length} ticket(s)…`);
     sendBt.disabled = true;
     let ok = 0, fail = 0; const failMsgs = [], sentKeys = [];
@@ -928,10 +1542,9 @@ load();
         });
         const data = await res.json().catch(() => ({}));
         if(data.ok){ ok += g.ids.length; g.ids.forEach(id => sentKeys.push(`${g.account}|${g.event_id}|${id}`)); }
-        else { fail += g.ids.length; failMsgs.push(`HTTP ${data.status || res.status} ${data.detail || data.error || ""}`.trim()); }
+        else { fail += g.ids.length; failMsgs.push(`HTTP ${data.status||res.status} ${data.detail||data.error||""}`.trim()); }
       }catch(e){ fail += g.ids.length; failMsgs.push(e.message); }
     }
-    // Drop successfully-sent tickets from the list locally.
     if(sentKeys.length){
       const s = new Set(sentKeys);
       tickets = tickets.filter(t => !s.has(keyOf(t)));
